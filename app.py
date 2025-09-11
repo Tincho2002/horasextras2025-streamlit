@@ -217,10 +217,10 @@ if uploaded_file is not None:
             else: df_grouped_gm['Total_Cantidades'] = 0
             col3, col4 = st.columns(2)
             with col3:
-                chart_costos_gm = alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Costos', y=alt.Y('Gerencia:N', sort='-x'), color='Ministerio').properties(title='Costos por Gerencia y Ministerio').interactive()
+                chart_costos_gm = alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Costos', y=alt.Y('Gerencia:N', sort='-x'), color='Ministerio').properties(title='Costos por Gerencia y Ministerio')
                 st.altair_chart(chart_costos_gm, use_container_width=True)
             with col4:
-                chart_cantidades_gm = alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Gerencia:N', sort='-x'), color='Ministerio').properties(title='Cantidades por Gerencia y Ministerio').interactive()
+                chart_cantidades_gm = alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Gerencia:N', sort='-x'), color='Ministerio').properties(title='Cantidades por Gerencia y Ministerio')
                 st.altair_chart(chart_cantidades_gm, use_container_width=True)
             st.subheader('Tabla de Distribución por Gerencia y Ministerio')
             st.dataframe(format_st_dataframe(df_grouped_gm))
