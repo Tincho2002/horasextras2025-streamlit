@@ -44,12 +44,12 @@ def generate_download_buttons(df_to_download, filename_prefix):
     csv_buffer = io.StringIO()
     df_to_download.to_csv(csv_buffer, index=False)
     with col_dl1:
-        st.download_button(label="⬇️ CSV", data=csv_buffer.getvalue(), file_name=f"{filename_prefix}.csv", mime="text/csv", key=f"csv_download_{filename_prefix}")
+        st.download_button(label="⬇️ Descargar como CSV", data=csv_buffer.getvalue(), file_name=f"{filename_prefix}.csv", mime="text/csv", key=f"csv_download_{filename_prefix}")
     excel_buffer = io.BytesIO()
     df_to_download.to_excel(excel_buffer, index=False, engine='openpyxl')
     excel_buffer.seek(0)
     with col_dl2:
-        st.download_button(label="📊 Excel", data=excel_buffer.getvalue(), file_name=f"{filename_prefix}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"excel_download_{filename_prefix}")
+        st.download_button(label="📊 Descargar como Excel", data=excel_buffer.getvalue(), file_name=f"{filename_prefix}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"excel_download_{filename_prefix}")
 
 def add_total_row(df, group_cols, value_cols, total_label='Total'):
     if not isinstance(group_cols, list): group_cols = [group_cols]
@@ -185,35 +185,52 @@ if uploaded_file is not None:
             else:
                 monthly_trends_agg['Total_Cantidades'] = 0
             
-            # El resto del código de la Pestaña 1... (Gráficos, etc.)
-            monthly_trends_costos_melted = monthly_trends_agg.melt('Mes', value_vars=['Total_Costos'] + selected_cost_types_internal, var_name='Tipo de Costo HE', value_name='Costo ($)')
-            monthly_trends_cantidades_melted = monthly_trends_agg.melt('Mes', value_vars=['Total_Cantidades'] + selected_quantity_types_internal, var_name='Tipo de Cantidad HE', value_name='Cantidad')
-            
+            monthly_trends_costos_melted = monthly_trends_agg.melt('Mes', value_vars=['Total_Costos'] + [col for col in selected_cost_types_internal if col in monthly_trends_agg.columns], var_name='Tipo de Costo HE', value_name='Costo ($)')
+            monthly_trends_cantidades_melted = monthly_trends_agg.melt('Mes', value_vars=['Total_Cantidades'] + [col for col in selected_quantity_types_internal if col in monthly_trends_agg.columns], var_name='Tipo de Cantidad HE', value_name='Cantidad')
+
             col1, col2 = st.columns(2)
             with col1:
-                chart_costos_mensual = alt.Chart(monthly_trends_costos_melted).mark_bar().encode(
-                    x='Mes', y='Costo ($)', color='Tipo de Costo HE'
-                ).properties(title='Costos Mensuales').interactive()
+                chart_costos_mensual = alt.Chart(monthly_trends_costos_melted).mark_bar().encode(x='Mes', y='Costo ($)', color='Tipo de Costo HE').properties(title='Costos Mensuales').interactive()
                 st.altair_chart(chart_costos_mensual, use_container_width=True)
             with col2:
-                chart_cantidades_mensual = alt.Chart(monthly_trends_cantidades_melted).mark_bar().encode(
-                    x='Mes', y='Cantidad', color='Tipo de Cantidad HE'
-                ).properties(title='Cantidades Mensuales').interactive()
+                chart_cantidades_mensual = alt.Chart(monthly_trends_cantidades_melted).mark_bar().encode(x='Mes', y='Cantidad', color='Tipo de Cantidad HE').properties(title='Cantidades Mensuales').interactive()
                 st.altair_chart(chart_cantidades_mensual, use_container_width=True)
             
             st.subheader('Tabla de Tendencias Mensuales')
             st.dataframe(format_st_dataframe(monthly_trends_agg))
             generate_download_buttons(monthly_trends_agg, 'tendencias_mensuales')
+            
+            st.markdown('---')
+
+            st.header('Análisis de Variaciones Mensuales')
+            monthly_trends_for_var = monthly_trends_agg[['Mes', 'Total_Costos', 'Total_Cantidades']].copy()
+            monthly_trends_for_var['Variacion_Costos_Abs'] = monthly_trends_for_var['Total_Costos'].diff().fillna(0)
+            monthly_trends_for_var['Variacion_Cantidades_Abs'] = monthly_trends_for_var['Total_Cantidades'].diff().fillna(0)
+            
+            col_var1, col_var2 = st.columns(2)
+            with col_var1:
+                chart_var_costos = alt.Chart(monthly_trends_for_var).mark_bar().encode(
+                    x=alt.X('Mes'), y=alt.Y('Variacion_Costos_Abs', title='Variación de Costos ($)'),
+                    color=alt.condition(alt.datum.Variacion_Costos_Abs > 0, alt.value('green'), alt.value('red'))
+                ).properties(title='Variación Mensual de Costos').interactive()
+                st.altair_chart(chart_var_costos, use_container_width=True)
+            with col_var2:
+                chart_var_cantidades = alt.Chart(monthly_trends_for_var).mark_bar().encode(
+                    x=alt.X('Mes'), y=alt.Y('Variacion_Cantidades_Abs', title='Variación de Cantidades'),
+                    color=alt.condition(alt.datum.Variacion_Cantidades_Abs > 0, alt.value('green'), alt.value('red'))
+                ).properties(title='Variación Mensual de Cantidades').interactive()
+                st.altair_chart(chart_var_cantidades, use_container_width=True)
 
     with tab2:
-        st.header('Desglose Organizacional')
+        st.header('Distribución por Gerencia y Ministerio')
         if filtered_df.empty:
             st.warning("No hay datos para mostrar.")
         else:
             df_grouped_gm = filtered_df.groupby(['Gerencia', 'Ministerio']).agg(Total_Costos=('Total ($)', 'sum'), Total_Cantidades=('Total (Q)', 'sum')).reset_index()
             st.dataframe(format_st_dataframe(df_grouped_gm))
             generate_download_buttons(df_grouped_gm, 'desglose_organizacional')
-            
+            # Aquí puedes añadir más desgloses como por Sexo, Nivel, etc., siguiendo la misma lógica.
+
     with tab3:
         st.header(f'Top {top_n_employees} Empleados')
         if filtered_df.empty:
@@ -221,10 +238,14 @@ if uploaded_file is not None:
         else:
             employee_overtime = filtered_df.groupby(['Legajo', 'Apellido y nombre']).agg(Total_Costos=('Total ($)', 'sum'), Total_Cantidades=('Total (Q)', 'sum')).reset_index()
             st.subheader('Top por Costo')
-            st.dataframe(format_st_dataframe(employee_overtime.nlargest(top_n_employees, 'Total_Costos')))
+            top_cost = employee_overtime.nlargest(top_n_employees, 'Total_Costos')
+            st.dataframe(format_st_dataframe(top_cost))
+            generate_download_buttons(top_cost, 'top_empleados_costo')
+            
             st.subheader('Top por Cantidad')
-            st.dataframe(format_st_dataframe(employee_overtime.nlargest(top_n_employees, 'Total_Cantidades')))
-            generate_download_buttons(employee_overtime, 'top_empleados')
+            top_qty = employee_overtime.nlargest(top_n_employees, 'Total_Cantidades')
+            st.dataframe(format_st_dataframe(top_qty))
+            generate_download_buttons(top_qty, 'top_empleados_cantidad')
 
     with tab_valor_hora:
         st.header('Valores Promedio por Hora')
@@ -233,7 +254,8 @@ if uploaded_file is not None:
         else:
             valor_hora_cols = [col for col in ['Hora Normal', 'Hora Extra al 50%', 'Hora Extra al 100%'] if col in filtered_df.columns]
             if valor_hora_cols:
-                df_valor_hora = filtered_df.groupby('Gerencia')[valor_hora_cols].mean().reset_index()
+                grouping_dimension = st.selectbox('Desglosar por:', ['Gerencia', 'Función', 'Nivel', 'Sexo'])
+                df_valor_hora = filtered_df.groupby(grouping_dimension)[valor_hora_cols].mean().reset_index()
                 st.dataframe(format_st_dataframe(df_valor_hora))
                 generate_download_buttons(df_valor_hora, 'valor_hora')
             else:
