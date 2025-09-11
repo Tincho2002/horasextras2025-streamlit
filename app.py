@@ -19,12 +19,6 @@ div.stDownloadButton button:hover {
     background-color: #5A4ADF; transform: translateY(-2px);
     box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
 }
-.stMultiSelect div[data-baseweb="select"] {
-    border: 1px solid #adb5bd; border-radius: 0.5rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); background-color: #f8f9fa;
-    transition: all 0.2s ease-in-out;
-}
-.stMultiSelect div[data-baseweb="select"]:hover { border-color: #6c757d; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -68,7 +62,6 @@ def load_and_clean_data(file_upload_obj):
     except Exception:
         try:
             df_excel = pd.read_excel(file_upload_obj, dtype={'Legajo': str, 'CECO': str, 'Nivel': str})
-            st.warning("No se encontró la hoja 'Datos'. Se cargó la primera hoja del Excel.")
         except Exception as e_no_sheet:
             st.error(f"ERROR CRÍTICO: No se pudo leer el archivo Excel. Mensaje: {e_no_sheet}")
             return pd.DataFrame()
@@ -199,7 +192,7 @@ if uploaded_file is not None:
             monthly_trends_for_var['Variacion_Cantidades_Abs'] = monthly_trends_for_var['Total_Cantidades'].diff().fillna(0)
             monthly_trends_for_var['Variacion_Costos_Pct'] = monthly_trends_for_var['Total_Costos'].pct_change().fillna(0) * 100
             monthly_trends_for_var['Variacion_Cantidades_Pct'] = monthly_trends_for_var['Total_Cantidades'].pct_change().fillna(0) * 100
-
+            
             col_var1, col_var2 = st.columns(2)
             with col_var1:
                 chart_var_costos = alt.Chart(monthly_trends_for_var).mark_bar().encode(x=alt.X('Mes'), y=alt.Y('Variacion_Costos_Abs', title='Variación de Costos ($)'), color=alt.condition(alt.datum.Variacion_Costos_Abs > 0, alt.value('green'), alt.value('red'))).properties(title='Variación Mensual de Costos').interactive()
@@ -207,7 +200,7 @@ if uploaded_file is not None:
             with col_var2:
                 chart_var_cantidades = alt.Chart(monthly_trends_for_var).mark_bar().encode(x=alt.X('Mes'), y=alt.Y('Variacion_Cantidades_Abs', title='Variación de Cantidades'), color=alt.condition(alt.datum.Variacion_Cantidades_Abs > 0, alt.value('green'), alt.value('red'))).properties(title='Variación Mensual de Cantidades').interactive()
                 st.altair_chart(chart_var_cantidades, use_container_width=True)
-            
+
             st.subheader('Tabla de Variaciones Mensuales')
             df_variaciones = monthly_trends_for_var[['Mes', 'Total_Costos', 'Variacion_Costos_Abs', 'Variacion_Costos_Pct', 'Total_Cantidades', 'Variacion_Cantidades_Abs', 'Variacion_Cantidades_Pct']]
             st.dataframe(format_st_dataframe(df_variaciones))
@@ -251,36 +244,109 @@ if uploaded_file is not None:
             st.dataframe(format_st_dataframe(df_grouped_gs))
             generate_download_buttons(df_grouped_gs, 'distribucion_gerencia_sexo')
 
+            st.markdown('---')
+            st.header('Distribución por Ministerio y Sexo')
+            df_grouped_ms = filtered_df.groupby(['Ministerio', 'Sexo']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
+            if selected_cost_types_internal: df_grouped_ms['Total_Costos'] = df_grouped_ms[[col for col in selected_cost_types_internal if col in df_grouped_ms.columns]].sum(axis=1)
+            else: df_grouped_ms['Total_Costos'] = 0
+            if selected_quantity_types_internal: df_grouped_ms['Total_Cantidades'] = df_grouped_ms[[col for col in selected_quantity_types_internal if col in df_grouped_ms.columns]].sum(axis=1)
+            else: df_grouped_ms['Total_Cantidades'] = 0
+            col_ms1, col_ms2 = st.columns(2)
+            with col_ms1:
+                chart_costos_ms = alt.Chart(df_grouped_ms).mark_bar().encode(x='Total_Costos', y=alt.Y('Ministerio:N', sort='-x'), color='Sexo').properties(title='Costos por Ministerio y Sexo').interactive()
+                st.altair_chart(chart_costos_ms, use_container_width=True)
+            with col_ms2:
+                chart_cantidades_ms = alt.Chart(df_grouped_ms).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Ministerio:N', sort='-x'), color='Sexo').properties(title='Cantidades por Ministerio y Sexo').interactive()
+                st.altair_chart(chart_cantidades_ms, use_container_width=True)
+            st.subheader('Tabla de Distribución por Ministerio y Sexo')
+            st.dataframe(format_st_dataframe(df_grouped_ms))
+            generate_download_buttons(df_grouped_ms, 'distribucion_ministerio_sexo')
+
+            st.markdown('---')
+            st.header('Distribución por Nivel y Sexo')
+            df_grouped_ns = filtered_df.groupby(['Nivel', 'Sexo']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
+            if selected_cost_types_internal: df_grouped_ns['Total_Costos'] = df_grouped_ns[[col for col in selected_cost_types_internal if col in df_grouped_ns.columns]].sum(axis=1)
+            else: df_grouped_ns['Total_Costos'] = 0
+            if selected_quantity_types_internal: df_grouped_ns['Total_Cantidades'] = df_grouped_ns[[col for col in selected_quantity_types_internal if col in df_grouped_ns.columns]].sum(axis=1)
+            else: df_grouped_ns['Total_Cantidades'] = 0
+            col_ns1, col_ns2 = st.columns(2)
+            with col_ns1:
+                chart_costos_ns = alt.Chart(df_grouped_ns).mark_bar().encode(x='Total_Costos', y=alt.Y('Nivel:N', sort='-x'), color='Sexo').properties(title='Costos por Nivel y Sexo').interactive()
+                st.altair_chart(chart_costos_ns, use_container_width=True)
+            with col_ns2:
+                chart_cantidades_ns = alt.Chart(df_grouped_ns).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Nivel:N', sort='-x'), color='Sexo').properties(title='Cantidades por Nivel y Sexo').interactive()
+                st.altair_chart(chart_cantidades_ns, use_container_width=True)
+            st.subheader('Tabla de Distribución por Nivel y Sexo')
+            st.dataframe(format_st_dataframe(df_grouped_ns))
+            generate_download_buttons(df_grouped_ns, 'distribucion_nivel_sexo')
+
+            st.markdown('---')
+            st.header('Distribución por Función y Sexo')
+            df_grouped_fs = filtered_df.groupby(['Función', 'Sexo']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
+            if selected_cost_types_internal: df_grouped_fs['Total_Costos'] = df_grouped_fs[[col for col in selected_cost_types_internal if col in df_grouped_fs.columns]].sum(axis=1)
+            else: df_grouped_fs['Total_Costos'] = 0
+            if selected_quantity_types_internal: df_grouped_fs['Total_Cantidades'] = df_grouped_fs[[col for col in selected_quantity_types_internal if col in df_grouped_fs.columns]].sum(axis=1)
+            else: df_grouped_fs['Total_Cantidades'] = 0
+            col_fs1, col_fs2 = st.columns(2)
+            with col_fs1:
+                chart_costos_fs = alt.Chart(df_grouped_fs).mark_bar().encode(x='Total_Costos', y=alt.Y('Función:N', sort='-x'), color='Sexo').properties(title='Costos por Función y Sexo').interactive()
+                st.altair_chart(chart_costos_fs, use_container_width=True)
+            with col_fs2:
+                chart_cantidades_fs = alt.Chart(df_grouped_fs).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Función:N', sort='-x'), color='Sexo').properties(title='Cantidades por Función y Sexo').interactive()
+                st.altair_chart(chart_cantidades_fs, use_container_width=True)
+            st.subheader('Tabla de Distribución por Función y Sexo')
+            st.dataframe(format_st_dataframe(df_grouped_fs))
+            generate_download_buttons(df_grouped_fs, 'distribucion_funcion_sexo')
+
     with tab3:
-        st.header(f'Top {top_n_employees} Empleados')
+        st.header(f'Top {top_n_employees} Empleados con Mayor Horas Extras')
         if filtered_df.empty:
             st.warning("No hay datos para mostrar.")
         else:
-            employee_overtime = filtered_df.groupby(['Legajo', 'Apellido y nombre']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
-            if selected_cost_types_internal: employee_overtime['Total_Costos'] = employee_overtime[[f'{col}_costo_agg' for col in selected_cost_types_internal if f'{col}_costo_agg' in employee_overtime.columns]].sum(axis=1)
+            agg_cols = {}
+            for col_name in cost_columns_options.values():
+                if col_name in filtered_df.columns: agg_cols[f'{col_name}_costo_agg'] = pd.NamedAgg(column=col_name, aggfunc='sum')
+            for col_name in quantity_columns_options.values():
+                if col_name in filtered_df.columns: agg_cols[f'{col_name}_cant_agg'] = pd.NamedAgg(column=col_name, aggfunc='sum')
+            employee_overtime = filtered_df.groupby(['Legajo', 'Apellido y nombre']).agg(**agg_cols).reset_index()
+
+            total_cost_cols_for_sum = []
+            for original_col in selected_cost_types_internal:
+                agg_col_name = f'{original_col}_costo_agg'
+                if agg_col_name in employee_overtime.columns: total_cost_cols_for_sum.append(agg_col_name)
+            if total_cost_cols_for_sum: employee_overtime['Total_Costos'] = employee_overtime[total_cost_cols_for_sum].sum(axis=1)
             else: employee_overtime['Total_Costos'] = 0
-            if selected_quantity_types_internal: employee_overtime['Total_Cantidades'] = employee_overtime[[f'{col}_cant_agg' for col in selected_quantity_types_internal if f'{col}_cant_agg' in employee_overtime.columns]].sum(axis=1)
+
+            total_quantity_cols_for_sum = []
+            for original_col in selected_quantity_types_internal:
+                agg_col_name = f'{original_col}_cant_agg'
+                if agg_col_name in employee_overtime.columns: total_quantity_cols_for_sum.append(agg_col_name)
+            if total_quantity_cols_for_sum: employee_overtime['Total_Cantidades'] = employee_overtime[total_quantity_cols_for_sum].sum(axis=1)
             else: employee_overtime['Total_Cantidades'] = 0
 
-            col_top1, col_top2 = st.columns(2)
-            with col_top1:
+            col_top_charts_1, col_top_charts_2 = st.columns(2)
+            with col_top_charts_1:
                 st.subheader('Top por Costo')
                 top_costo_empleados = employee_overtime.nlargest(top_n_employees, 'Total_Costos')
-                chart_top_costo = alt.Chart(top_costo_empleados).mark_bar().encode(y=alt.Y('Apellido y nombre:N', sort='-x'), x='Total_Costos').properties(title=f'Top {top_n_employees} por Costo').interactive()
-                st.altair_chart(chart_top_costo, use_container_width=True)
-            with col_top2:
+                if not top_costo_empleados.empty:
+                    chart_top_costo = alt.Chart(top_costo_empleados).mark_bar().encode(y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), x=alt.X('Total_Costos:Q', title='Total Costos ($)')).properties(title=f'Top {top_n_employees} Empleados por Costo de HE').interactive()
+                    st.altair_chart(chart_top_costo, use_container_width=True)
+            with col_top_charts_2:
                 st.subheader('Top por Cantidad')
                 top_cantidad_empleados = employee_overtime.nlargest(top_n_employees, 'Total_Cantidades')
-                chart_top_cantidad = alt.Chart(top_cantidad_empleados).mark_bar().encode(y=alt.Y('Apellido y nombre:N', sort='-x'), x='Total_Cantidades').properties(title=f'Top {top_n_employees} por Cantidad').interactive()
-                st.altair_chart(chart_top_cantidad, use_container_width=True)
+                if not top_cantidad_empleados.empty:
+                    chart_top_cantidad = alt.Chart(top_cantidad_empleados).mark_bar().encode(y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), x=alt.X('Total_Cantidades:Q', title='Total Cantidades HE')).properties(title=f'Top {top_n_employees} Empleados por Cantidad de HE').interactive()
+                    st.altair_chart(chart_top_cantidad, use_container_width=True)
             
-            st.subheader('Tabla de Top Empleados por Importe')
+            st.markdown('---')
+            st.subheader('Tabla de Top Importe Horas Extras')
             st.dataframe(format_st_dataframe(top_costo_empleados))
-            generate_download_buttons(top_costo_empleados, 'top_empleados_importe')
+            generate_download_buttons(top_costo_empleados, f'top_{top_n_employees}_importe_horas_extras')
 
-            st.subheader('Tabla de Top Empleados por Cantidad')
+            st.markdown('---')
+            st.subheader('Tabla de Top Cantidad Horas Extras')
             st.dataframe(format_st_dataframe(top_cantidad_empleados))
-            generate_download_buttons(top_cantidad_empleados, 'top_empleados_cantidad')
+            generate_download_buttons(top_cantidad_empleados, f'top_{top_n_employees}_cantidad_horas_extras')
 
     with tab_valor_hora:
         st.header('Valores Promedio por Hora')
@@ -289,7 +355,7 @@ if uploaded_file is not None:
         else:
             valor_hora_cols = [col for col in ['Hora Normal', 'Hora Extra al 50%', 'Hora Extra al 50% Sabados', 'Hora Extra al 100%', 'HE FC'] if col in filtered_df.columns]
             if valor_hora_cols:
-                grouping_dimension = st.selectbox('Desglosar por:', ['Gerencia', 'Legajo', 'Función', 'CECO', 'Ubicación', 'Nivel', 'Sexo'], key='valor_hora_grouping')
+                grouping_dimension = st.selectbox('Selecciona la dimensión de desglose:', ['Gerencia', 'Legajo', 'Función', 'CECO', 'Ubicación', 'Nivel', 'Sexo'], key='valor_hora_grouping')
                 df_valor_hora = filtered_df.groupby(grouping_dimension)[valor_hora_cols].mean().reset_index()
                 st.dataframe(format_st_dataframe(df_valor_hora))
                 generate_download_buttons(df_valor_hora, f'valores_promedio_hora_por_{grouping_dimension}')
