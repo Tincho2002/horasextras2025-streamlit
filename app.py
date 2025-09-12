@@ -285,21 +285,60 @@ if uploaded_file is not None:
             col1, col2 = st.columns(2)
             with col1:
                 with st.container(border=True):
-                    monthly_trends_costos_melted = monthly_trends_agg.melt('Mes', value_vars=['Total_Costos'] + [col for col in selected_cost_types_internal if col in monthly_trends_agg.columns], var_name='Tipo de Costo HE', value_name='Costo ($)')
-                    chart_costos_mensual = alt.Chart(monthly_trends_costos_melted).mark_bar().encode(
-                        x='Mes', 
-                        y='Costo ($)', 
+                    # --- Gráfico de Costos (Combinado) ---
+                    # Datos para las barras (sin el total)
+                    cost_bars_vars = [col for col in selected_cost_types_internal if col in monthly_trends_agg.columns]
+                    monthly_trends_costos_melted_bars = monthly_trends_agg.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
+
+                    # Capa de Barras
+                    bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(
+                        x='Mes',
+                        y=alt.Y('Costo ($):Q', stack='zero'),
                         color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300))
-                    ).properties(title='Costos Mensuales').interactive()
+                    )
+                    # Capa de Línea para el Total
+                    line_costos = alt.Chart(monthly_trends_agg).mark_line(
+                        color='black', point=True, strokeDash=[3,3]
+                    ).encode(
+                        x='Mes',
+                        y=alt.Y('Total_Costos:Q', title='Costo ($)'),
+                        tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format=',.2f')]
+                    )
+                    # Combinar capas
+                    chart_costos_mensual = alt.layer(bars_costos, line_costos).resolve_scale(
+                        y = 'shared'
+                    ).properties(
+                        title='Costos Mensuales'
+                    ).interactive()
                     st.altair_chart(chart_costos_mensual, use_container_width=True)
+
             with col2:
                 with st.container(border=True):
-                    monthly_trends_cantidades_melted = monthly_trends_agg.melt('Mes', value_vars=['Total_Cantidades'] + [col for col in selected_quantity_types_internal if col in monthly_trends_agg.columns], var_name='Tipo de Cantidad HE', value_name='Cantidad')
-                    chart_cantidades_mensual = alt.Chart(monthly_trends_cantidades_melted).mark_bar().encode(
-                        x='Mes', 
-                        y='Cantidad', 
+                    # --- Gráfico de Cantidades (Combinado) ---
+                    # Datos para las barras (sin el total)
+                    quantity_bars_vars = [col for col in selected_quantity_types_internal if col in monthly_trends_agg.columns]
+                    monthly_trends_cantidades_melted_bars = monthly_trends_agg.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
+                    
+                    # Capa de Barras
+                    bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(
+                        x='Mes',
+                        y=alt.Y('Cantidad:Q', stack='zero'),
                         color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300))
-                    ).properties(title='Cantidades Mensuales').interactive()
+                    )
+                    # Capa de Línea para el Total
+                    line_cantidades = alt.Chart(monthly_trends_agg).mark_line(
+                        color='black', point=True, strokeDash=[3,3]
+                    ).encode(
+                        x='Mes',
+                        y=alt.Y('Total_Cantidades:Q', title='Cantidad'),
+                        tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')]
+                    )
+                    # Combinar capas
+                    chart_cantidades_mensual = alt.layer(bars_cantidades, line_cantidades).resolve_scale(
+                        y = 'shared'
+                    ).properties(
+                        title='Cantidades Mensuales'
+                    ).interactive()
                     st.altair_chart(chart_cantidades_mensual, use_container_width=True)
             
             with st.container(border=True):
@@ -489,4 +528,3 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados')
 else:
     st.info("⬆️ Esperando a que se suba un archivo Excel.")
-
