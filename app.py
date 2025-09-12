@@ -29,13 +29,10 @@ h2 { font-size: 1.6rem; color: #4a4a4a;}
 h3 { font-size: 1.3rem; color: #5a5a5a;}
 
 /* --- LAYOUT Y CONTENEDORES (FLEXBOX RESPONSIVE) --- */
-/* CORRECCIÓN DEFINITIVA: Se usa flex-wrap y flex-basis para forzar el apilamiento de columnas en pantallas pequeñas. */
+/* CORRECCIÓN DEFINITIVA Y ROBUSTA: Se fuerza la dirección de la columna en pantallas pequeñas. */
 @media (max-width: 768px) {
     div[data-testid="stHorizontalBlock"] {
-        flex-wrap: wrap;
-    }
-    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-        flex-basis: 100%;
+        flex-direction: column !important;
     }
 }
 
