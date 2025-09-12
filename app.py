@@ -191,26 +191,53 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-    # --- FILTROS INTERACTIVOS ---
+    # --- FILTROS INTERACTIVOS (CON LÓGICA EN CASCADA) ---
     st.sidebar.header('Filtros del Dashboard')
+
     def get_sorted_unique_options(dataframe, column_name):
+        """Función auxiliar para obtener opciones únicas y ordenadas para los filtros."""
         if column_name in dataframe.columns:
             unique_values = dataframe[column_name].dropna().unique().tolist()
-            if column_name == 'Mes': return sorted(unique_values)
+            if not unique_values: # Manejar el caso de una lista vacía
+                return []
+            
+            # Lógica de ordenamiento específico para columnas
+            if column_name == 'Mes': 
+                return sorted(unique_values)
             if column_name == 'Legajo':
-                numeric_vals, non_numeric_vals = [], [],
+                numeric_vals, non_numeric_vals = [], []
                 for val in unique_values:
-                    try: numeric_vals.append(int(val))
-                    except (ValueError, TypeError): non_numeric_vals.append(val)
+                    try: 
+                        numeric_vals.append(int(val))
+                    except (ValueError, TypeError): 
+                        non_numeric_vals.append(val)
+                # Retorna valores numéricos ordenados primero, luego los no numéricos
                 return [str(x) for x in sorted(numeric_vals)] + sorted(non_numeric_vals)
+            
             return sorted(unique_values)
         return []
 
-    filter_cols = ['Gerencia', 'Ministerio', 'Legajo', 'CECO', 'Ubicación', 'Nivel', 'Función', 'Sexo', 'Mes', 'Liquidación']
-    selections = {}
-    for col in filter_cols:
-        options = get_sorted_unique_options(df, col)
-        selections[col] = st.sidebar.multiselect(f'Selecciona {col}(s):', options, default=options)
+    # Define el orden jerárquico de los filtros
+    filter_cols_cascade = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
+
+    # Este dataframe se irá filtrando progresivamente en cada paso
+    df_for_filters = df.copy()
+
+    # Se itera sobre cada columna de filtro para crear los widgets en cascada
+    for col in filter_cols_cascade:
+        # Se obtienen las opciones disponibles del dataframe ya filtrado por los pasos anteriores
+        options = get_sorted_unique_options(df_for_filters, col)
+        
+        # Se crea el widget multiselect. `default=options` asegura que todo esté seleccionado al inicio.
+        # El `key` es crucial para que Streamlit identifique cada filtro de forma única.
+        selected_values = st.sidebar.multiselect(f'Selecciona {col}(s):', options, default=options, key=f"filter_{col}")
+        
+        # Se aplica el filtro al dataframe para la siguiente iteración del bucle.
+        if selected_values:
+            df_for_filters = df_for_filters[df_for_filters[col].isin(selected_values)]
+
+    # El dataframe final que se usará en los gráficos y tablas es el resultado de toda la cascada de filtros
+    filtered_df = df_for_filters
 
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
     st.sidebar.markdown("---")
@@ -221,10 +248,6 @@ if uploaded_file is not None:
     selected_quantity_types_display = st.sidebar.multiselect('Selecciona Tipos de Cantidad de HE:', list(quantity_columns_options.keys()), default=list(quantity_columns_options.keys()), key='filter_quantity_types')
     selected_cost_types_internal = [cost_columns_options[key] for key in selected_cost_types_display]
     selected_quantity_types_internal = [quantity_columns_options[key] for key in selected_quantity_types_display]
-
-    filtered_df = df.copy()
-    for col, selected_values in selections.items():
-        if selected_values: filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
 
     st.info(f"Mostrando **{len(filtered_df)}** registros según los filtros aplicados.")
 
@@ -244,7 +267,6 @@ if uploaded_file is not None:
                 monthly_trends_costos_melted = monthly_trends_agg.melt('Mes', value_vars=['Total_Costos'] + [col for col in selected_cost_types_internal if col in monthly_trends_agg.columns], var_name='Tipo de Costo HE', value_name='Costo ($)')
                 monthly_trends_cantidades_melted = monthly_trends_agg.melt('Mes', value_vars=['Total_Cantidades'] + [col for col in selected_quantity_types_internal if col in monthly_trends_agg.columns], var_name='Tipo de Cantidad HE', value_name='Cantidad')
                 
-                # CORRECCIÓN: Se apilan los gráficos para mejorar la responsividad
                 chart_costos_mensual = alt.Chart(monthly_trends_costos_melted).mark_bar().encode(x='Mes', y='Costo ($)', color='Tipo de Costo HE').properties(title='Costos Mensuales').interactive()
                 st.altair_chart(chart_costos_mensual, use_container_width=True)
                 
@@ -263,7 +285,6 @@ if uploaded_file is not None:
                 monthly_trends_for_var['Variacion_Costos_Pct'] = monthly_trends_for_var['Total_Costos'].pct_change().fillna(0) * 100
                 monthly_trends_for_var['Variacion_Cantidades_Pct'] = monthly_trends_for_var['Total_Cantidades'].pct_change().fillna(0) * 100
                 
-                # CORRECCIÓN: Se apilan los gráficos para mejorar la responsividad
                 chart_var_costos = alt.Chart(monthly_trends_for_var).mark_bar().encode(x=alt.X('Mes'), y=alt.Y('Variacion_Costos_Abs', title='Variación de Costos ($)'), color=alt.condition(alt.datum.Variacion_Costos_Abs > 0, alt.value('green'), alt.value('red'))).properties(title='Variación Mensual de Costos').interactive()
                 st.altair_chart(chart_var_costos, use_container_width=True)
                 
@@ -310,7 +331,6 @@ if uploaded_file is not None:
                 st.dataframe(format_st_dataframe(df_grouped_gs), use_container_width=True)
                 generate_download_buttons(df_grouped_gs, 'distribucion_gerencia_sexo')
 
-            # --- AÑADIDO: Secciones faltantes ---
             with st.container(border=True):
                 st.header('Distribución por Ministerio y Sexo')
                 df_grouped_ms = filtered_df.groupby(['Ministerio', 'Sexo']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
@@ -420,3 +440,4 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados')
 else:
     st.info("⬆️ Esperando a que se suba un archivo Excel.")
+
