@@ -191,7 +191,7 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-    # --- FILTROS INTERACTIVOS (LÓGICA EN CASCADA CORREGIDA) ---
+    # --- FILTROS INTERACTIVOS (LÓGICA EN CASCADA ROBUSTA) ---
     st.sidebar.header('Filtros del Dashboard')
 
     def get_sorted_unique_options(dataframe, column_name):
@@ -200,8 +200,6 @@ if uploaded_file is not None:
             unique_values = dataframe[column_name].dropna().unique().tolist()
             if not unique_values:
                 return []
-            
-            # Lógica de ordenamiento específico para columnas numéricas almacenadas como texto
             if column_name in ['Legajo', 'CECO']:
                 numeric_vals, non_numeric_vals = [], []
                 for val in unique_values:
@@ -210,55 +208,39 @@ if uploaded_file is not None:
                     except (ValueError, TypeError): 
                         non_numeric_vals.append(val)
                 return [str(x) for x in sorted(numeric_vals)] + sorted(non_numeric_vals)
-            
             return sorted(unique_values)
         return []
 
-    # Se rediseña la lógica de filtros para usar st.session_state, lo que da un control explícito
-    # sobre las selecciones y evita comportamientos inesperados de Streamlit.
-
     filter_cols_cascade = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
 
-    # Inicializar el estado de la sesión si es la primera vez que se ejecuta.
     if 'filters' not in st.session_state:
         st.session_state.filters = {}
 
-    # DataFrame temporal que se va acortando para generar las opciones de cada filtro.
     df_for_options = df.copy()
-    
-    # Diccionario para guardar las selecciones de la ejecución actual del script.
     current_selections = {}
 
     for col in filter_cols_cascade:
-        # 1. Obtener opciones válidas del dataframe que ya ha sido filtrado por los pasos anteriores.
         options = get_sorted_unique_options(df_for_options, col)
-        
-        # 2. Determinar cuál debe ser el valor por defecto del widget.
-        #    - Se obtiene la selección previa guardada en el estado de la sesión.
-        #    - Si no hay nada guardado, el valor por defecto será la lista completa de opciones nuevas.
-        #    - Crucial: se asegura que la selección previa solo contenga valores que aún existen en las 'options' actuales.
-        previous_selection = st.session_state.filters.get(col, options)
-        valid_selection_as_default = [val for val in previous_selection if val in options]
+        previous_selection = st.session_state.filters.get(col)
 
-        # 3. Crear el widget multiselect.
+        # Si hay una selección previa, se usa. Si no (o si se vació), se usan todas las opciones.
+        # Esto es clave para que al vaciar un filtro no desaparezcan las opciones del siguiente.
+        if previous_selection:
+            default_value = [val for val in previous_selection if val in options]
+        else:
+            default_value = options
+        
         selection = st.sidebar.multiselect(
-            f'Selecciona {col}(s):',
-            options,
-            default=valid_selection_as_default,
-            key=f"multiselect_{col}" # Se usa una clave única para el widget.
+            f'Selecciona {col}(s):', options, default=default_value, key=f"multiselect_{col}"
         )
         
-        # 4. Guardar la selección actual para usarla en el siguiente rerun.
         current_selections[col] = selection
         
-        # 5. Filtrar el dataframe de opciones para la siguiente iteración del bucle.
-        #    Esto asegura que el siguiente filtro solo muestre opciones relevantes.
-        df_for_options = df_for_options[df_for_options[col].isin(selection)]
+        # El filtro se aplica SOLO si hay algo seleccionado. Si está vacío, no se filtra.
+        if selection:
+            df_for_options = df_for_options[df_for_options[col].isin(selection)]
 
-    # 6. Al final del bucle, se actualiza el estado de la sesión con las selecciones de esta ejecución.
     st.session_state.filters = current_selections
-
-    # 7. El dataframe final para los gráficos es el que resultó del último bucle.
     filtered_df = df_for_options
 
 
@@ -463,4 +445,3 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados')
 else:
     st.info("⬆️ Esperando a que se suba un archivo Excel.")
-
