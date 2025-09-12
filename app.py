@@ -78,7 +78,7 @@ div[data-testid="stVerticalBlock"] > [data-testid="stVerticalBlockBorderWrapper"
 }
 
 /* --- BOTONES DE DESCARGA --- */
-div.stDownloadButton > button {
+div[stDownloadButton] > button {
     background-color: #6C5CE7;
     color: white;
     font-weight: bold;
@@ -89,7 +89,7 @@ div.stDownloadButton > button {
     transition: all 0.2s ease-in-out;
     font-size: 0.9rem;
 }
-div.stDownloadButton > button:hover {
+div[stDownloadButton] > button:hover {
     background-color: #5A4ADF;
     transform: translateY(-2px);
     box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
@@ -191,7 +191,7 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-    # --- FILTROS INTERACTIVOS (CON LÓGICA EN CASCADA) ---
+    # --- FILTROS INTERACTIVOS (LÓGICA EN CASCADA CORREGIDA) ---
     st.sidebar.header('Filtros del Dashboard')
 
     def get_sorted_unique_options(dataframe, column_name):
@@ -214,19 +214,53 @@ if uploaded_file is not None:
             return sorted(unique_values)
         return []
 
+    # Se rediseña la lógica de filtros para usar st.session_state, lo que da un control explícito
+    # sobre las selecciones y evita comportamientos inesperados de Streamlit.
+
     filter_cols_cascade = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
-    df_for_filters = df.copy()
+
+    # Inicializar el estado de la sesión si es la primera vez que se ejecuta.
+    if 'filters' not in st.session_state:
+        st.session_state.filters = {}
+
+    # DataFrame temporal que se va acortando para generar las opciones de cada filtro.
+    df_for_options = df.copy()
+    
+    # Diccionario para guardar las selecciones de la ejecución actual del script.
+    current_selections = {}
 
     for col in filter_cols_cascade:
-        options = get_sorted_unique_options(df_for_filters, col)
-        selected_values = st.sidebar.multiselect(f'Selecciona {col}(s):', options, default=options, key=f"filter_{col}")
+        # 1. Obtener opciones válidas del dataframe que ya ha sido filtrado por los pasos anteriores.
+        options = get_sorted_unique_options(df_for_options, col)
         
-        # CORRECCIÓN: Se elimina el `if selected_values:`
-        # El filtro se aplica siempre. Si `selected_values` está vacío, 
-        # `isin` devolverá un dataframe vacío, que es el comportamiento esperado.
-        df_for_filters = df_for_filters[df_for_filters[col].isin(selected_values)]
+        # 2. Determinar cuál debe ser el valor por defecto del widget.
+        #    - Se obtiene la selección previa guardada en el estado de la sesión.
+        #    - Si no hay nada guardado, el valor por defecto será la lista completa de opciones nuevas.
+        #    - Crucial: se asegura que la selección previa solo contenga valores que aún existen en las 'options' actuales.
+        previous_selection = st.session_state.filters.get(col, options)
+        valid_selection_as_default = [val for val in previous_selection if val in options]
 
-    filtered_df = df_for_filters
+        # 3. Crear el widget multiselect.
+        selection = st.sidebar.multiselect(
+            f'Selecciona {col}(s):',
+            options,
+            default=valid_selection_as_default,
+            key=f"multiselect_{col}" # Se usa una clave única para el widget.
+        )
+        
+        # 4. Guardar la selección actual para usarla en el siguiente rerun.
+        current_selections[col] = selection
+        
+        # 5. Filtrar el dataframe de opciones para la siguiente iteración del bucle.
+        #    Esto asegura que el siguiente filtro solo muestre opciones relevantes.
+        df_for_options = df_for_options[df_for_options[col].isin(selection)]
+
+    # 6. Al final del bucle, se actualiza el estado de la sesión con las selecciones de esta ejecución.
+    st.session_state.filters = current_selections
+
+    # 7. El dataframe final para los gráficos es el que resultó del último bucle.
+    filtered_df = df_for_options
+
 
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
     st.sidebar.markdown("---")
@@ -429,3 +463,4 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados')
 else:
     st.info("⬆️ Esperando a que se suba un archivo Excel.")
+
