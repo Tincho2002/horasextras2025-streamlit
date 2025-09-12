@@ -29,11 +29,13 @@ h2 { font-size: 1.6rem; color: #4a4a4a;}
 h3 { font-size: 1.3rem; color: #5a5a5a;}
 
 /* --- LAYOUT Y CONTENEDORES (FLEXBOX RESPONSIVE) --- */
-/* En pantallas de más de 768px, las columnas se mantienen lado a lado.
-   En pantallas más pequeñas, se apilan una sobre otra. */
+/* CORRECCIÓN DEFINITIVA: Se usa flex-wrap y flex-basis para forzar el apilamiento de columnas en pantallas pequeñas. */
 @media (max-width: 768px) {
     div[data-testid="stHorizontalBlock"] {
-        flex-direction: column;
+        flex-wrap: wrap;
+    }
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        flex-basis: 100%;
     }
 }
 
@@ -93,7 +95,7 @@ div[data-testid="stDownloadButton"] button:hover {
 
 /* --- OTROS ELEMENTOS --- */
 /* Mejora visual de las pestañas */
-.stTabs [data-baseweb="tab"] {
+.stTabs [data-basweb="tab"] {
     border-radius: 6px 6px 0 0;
     padding: 10px 20px;
     font-weight: 600;
@@ -324,11 +326,11 @@ if uploaded_file is not None:
     with tab2:
         if filtered_df.empty: st.warning("No hay datos para mostrar.")
         else:
+            df_grouped_gm = filtered_df.groupby(['Gerencia', 'Ministerio']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
+            df_grouped_gm['Total_Costos'] = df_grouped_gm[[col for col in selected_cost_types_internal if col in df_grouped_gm.columns]].sum(axis=1) if selected_cost_types_internal else 0
+            df_grouped_gm['Total_Cantidades'] = df_grouped_gm[[col for col in selected_quantity_types_internal if col in df_grouped_gm.columns]].sum(axis=1) if selected_quantity_types_internal else 0
             with st.container(border=True):
                 st.header('Distribución por Gerencia y Ministerio')
-                df_grouped_gm = filtered_df.groupby(['Gerencia', 'Ministerio']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
-                df_grouped_gm['Total_Costos'] = df_grouped_gm[[col for col in selected_cost_types_internal if col in df_grouped_gm.columns]].sum(axis=1) if selected_cost_types_internal else 0
-                df_grouped_gm['Total_Cantidades'] = df_grouped_gm[[col for col in selected_quantity_types_internal if col in df_grouped_gm.columns]].sum(axis=1) if selected_quantity_types_internal else 0
                 col1, col2 = st.columns(2)
                 with col1:
                     chart_costos_gm = alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Costos', y=alt.Y('Gerencia:N', sort='-x'), color='Ministerio').properties(title='Costos por Gerencia y Ministerio')
@@ -341,11 +343,11 @@ if uploaded_file is not None:
                 st.dataframe(format_st_dataframe(df_grouped_gm), use_container_width=True)
                 generate_download_buttons(df_grouped_gm, 'distribucion_gerencia_ministerio')
 
+            df_grouped_gs = filtered_df.groupby(['Gerencia', 'Sexo']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
+            df_grouped_gs['Total_Costos'] = df_grouped_gs[[col for col in selected_cost_types_internal if col in df_grouped_gs.columns]].sum(axis=1) if selected_cost_types_internal else 0
+            df_grouped_gs['Total_Cantidades'] = df_grouped_gs[[col for col in selected_quantity_types_internal if col in df_grouped_gs.columns]].sum(axis=1) if selected_quantity_types_internal else 0
             with st.container(border=True):
                 st.header('Distribución por Gerencia y Sexo')
-                df_grouped_gs = filtered_df.groupby(['Gerencia', 'Sexo']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
-                df_grouped_gs['Total_Costos'] = df_grouped_gs[[col for col in selected_cost_types_internal if col in df_grouped_gs.columns]].sum(axis=1) if selected_cost_types_internal else 0
-                df_grouped_gs['Total_Cantidades'] = df_grouped_gs[[col for col in selected_quantity_types_internal if col in df_grouped_gs.columns]].sum(axis=1) if selected_quantity_types_internal else 0
                 col1, col2 = st.columns(2)
                 with col1:
                     chart_costos_gs = alt.Chart(df_grouped_gs).mark_bar().encode(x='Total_Costos', y=alt.Y('Gerencia:N', sort='-x'), color='Sexo').properties(title='Costos por Gerencia y Sexo').interactive()
@@ -358,11 +360,11 @@ if uploaded_file is not None:
                 st.dataframe(format_st_dataframe(df_grouped_gs), use_container_width=True)
                 generate_download_buttons(df_grouped_gs, 'distribucion_gerencia_sexo')
 
+            df_grouped_ms = filtered_df.groupby(['Ministerio', 'Sexo']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
+            df_grouped_ms['Total_Costos'] = df_grouped_ms[[col for col in selected_cost_types_internal if col in df_grouped_ms.columns]].sum(axis=1) if selected_cost_types_internal else 0
+            df_grouped_ms['Total_Cantidades'] = df_grouped_ms[[col for col in selected_quantity_types_internal if col in df_grouped_ms.columns]].sum(axis=1) if selected_quantity_types_internal else 0
             with st.container(border=True):
                 st.header('Distribución por Ministerio y Sexo')
-                df_grouped_ms = filtered_df.groupby(['Ministerio', 'Sexo']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
-                df_grouped_ms['Total_Costos'] = df_grouped_ms[[col for col in selected_cost_types_internal if col in df_grouped_ms.columns]].sum(axis=1) if selected_cost_types_internal else 0
-                df_grouped_ms['Total_Cantidades'] = df_grouped_ms[[col for col in selected_quantity_types_internal if col in df_grouped_ms.columns]].sum(axis=1) if selected_quantity_types_internal else 0
                 col1, col2 = st.columns(2)
                 with col1:
                     chart_costos_ms = alt.Chart(df_grouped_ms).mark_bar().encode(x='Total_Costos', y=alt.Y('Ministerio:N', sort='-x'), color='Sexo').properties(title='Costos por Ministerio y Sexo').interactive()
@@ -375,11 +377,11 @@ if uploaded_file is not None:
                 st.dataframe(format_st_dataframe(df_grouped_ms), use_container_width=True)
                 generate_download_buttons(df_grouped_ms, 'distribucion_ministerio_sexo')
 
+            df_grouped_ns = filtered_df.groupby(['Nivel', 'Sexo']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
+            df_grouped_ns['Total_Costos'] = df_grouped_ns[[col for col in selected_cost_types_internal if col in df_grouped_ns.columns]].sum(axis=1) if selected_cost_types_internal else 0
+            df_grouped_ns['Total_Cantidades'] = df_grouped_ns[[col for col in selected_quantity_types_internal if col in df_grouped_ns.columns]].sum(axis=1) if selected_quantity_types_internal else 0
             with st.container(border=True):
                 st.header('Distribución por Nivel y Sexo')
-                df_grouped_ns = filtered_df.groupby(['Nivel', 'Sexo']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
-                df_grouped_ns['Total_Costos'] = df_grouped_ns[[col for col in selected_cost_types_internal if col in df_grouped_ns.columns]].sum(axis=1) if selected_cost_types_internal else 0
-                df_grouped_ns['Total_Cantidades'] = df_grouped_ns[[col for col in selected_quantity_types_internal if col in df_grouped_ns.columns]].sum(axis=1) if selected_quantity_types_internal else 0
                 col1, col2 = st.columns(2)
                 with col1:
                     chart_costos_ns = alt.Chart(df_grouped_ns).mark_bar().encode(x='Total_Costos', y=alt.Y('Nivel:N', sort='-x'), color='Sexo').properties(title='Costos por Nivel y Sexo').interactive()
@@ -392,11 +394,11 @@ if uploaded_file is not None:
                 st.dataframe(format_st_dataframe(df_grouped_ns), use_container_width=True)
                 generate_download_buttons(df_grouped_ns, 'distribucion_nivel_sexo')
 
+            df_grouped_fs = filtered_df.groupby(['Función', 'Sexo']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
+            df_grouped_fs['Total_Costos'] = df_grouped_fs[[col for col in selected_cost_types_internal if col in df_grouped_fs.columns]].sum(axis=1) if selected_cost_types_internal else 0
+            df_grouped_fs['Total_Cantidades'] = df_grouped_fs[[col for col in selected_quantity_types_internal if col in df_grouped_fs.columns]].sum(axis=1) if selected_quantity_types_internal else 0
             with st.container(border=True):
                 st.header('Distribución por Función y Sexo')
-                df_grouped_fs = filtered_df.groupby(['Función', 'Sexo']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
-                df_grouped_fs['Total_Costos'] = df_grouped_fs[[col for col in selected_cost_types_internal if col in df_grouped_fs.columns]].sum(axis=1) if selected_cost_types_internal else 0
-                df_grouped_fs['Total_Cantidades'] = df_grouped_fs[[col for col in selected_quantity_types_internal if col in df_grouped_fs.columns]].sum(axis=1) if selected_quantity_types_internal else 0
                 col1, col2 = st.columns(2)
                 with col1:
                     chart_costos_fs = alt.Chart(df_grouped_fs).mark_bar().encode(x='Total_Costos', y=alt.Y('Función:N', sort='-x'), color='Sexo').properties(title='Costos por Función y Sexo').interactive()
