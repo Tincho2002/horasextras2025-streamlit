@@ -191,7 +191,7 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-    # --- FILTROS INTERACTIVOS (LÓGICA EN CASCADA ROBUSTA) ---
+    # --- FILTROS INTERACTIVOS (LÓGICA EN CASCADA DEFINITIVA) ---
     st.sidebar.header('Filtros del Dashboard')
 
     def get_sorted_unique_options(dataframe, column_name):
@@ -213,35 +213,53 @@ if uploaded_file is not None:
 
     filter_cols_cascade = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
 
-    if 'filters' not in st.session_state:
-        st.session_state.filters = {}
+    # Se usa una clave diferente en session_state para forzar la reinicialización de la lógica.
+    if 'final_selections' not in st.session_state:
+        st.session_state.final_selections = {}
 
-    df_for_options = df.copy()
-    current_selections = {}
+    df_options_scope = df.copy()
+    new_selections = {}
+    parent_changed = False
 
     for col in filter_cols_cascade:
-        options = get_sorted_unique_options(df_for_options, col)
-        previous_selection = st.session_state.filters.get(col)
+        options = get_sorted_unique_options(df_options_scope, col)
+        last_selection = st.session_state.final_selections.get(col, [])
 
-        # Si hay una selección previa, se usa. Si no (o si se vació), se usan todas las opciones.
-        # Esto es clave para que al vaciar un filtro no desaparezcan las opciones del siguiente.
-        if previous_selection:
-            default_value = [val for val in previous_selection if val in options]
-        else:
+        # Determinar el valor por defecto
+        if parent_changed:
             default_value = options
-        
-        selection = st.sidebar.multiselect(
-            f'Selecciona {col}(s):', options, default=default_value, key=f"multiselect_{col}"
-        )
-        
-        current_selections[col] = selection
-        
-        # El filtro se aplica SOLO si hay algo seleccionado. Si está vacío, no se filtra.
-        if selection:
-            df_for_options = df_for_options[df_for_options[col].isin(selection)]
+        else:
+            default_value = [item for item in last_selection if item in options]
+            if not default_value and last_selection:
+                default_value = options
+            elif not last_selection:
+                default_value = options
 
-    st.session_state.filters = current_selections
-    filtered_df = df_for_options
+        selection = st.sidebar.multiselect(
+            f'Selecciona {col}(s):',
+            options,
+            default=default_value,
+            key=f"multiselect_{col}"
+        )
+
+        # Si este filtro cambió, todos los filtros siguientes deben resetearse
+        if not parent_changed and set(selection) != set(last_selection):
+            parent_changed = True
+
+        new_selections[col] = selection
+
+        # Filtrar el dataframe que define las opciones para el siguiente filtro
+        if selection:
+            df_options_scope = df_options_scope[df_options_scope[col].isin(selection)]
+        else:
+            # Si un filtro se vacía, los hijos no tendrán opciones.
+            df_options_scope = df_options_scope[df_options_scope[col].isin([])]
+    
+    # Actualizar el estado para la próxima recarga
+    st.session_state.final_selections = new_selections
+    
+    # El dataframe final para los gráficos es el que fue filtrado progresivamente
+    filtered_df = df_options_scope
 
 
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
@@ -445,3 +463,4 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados')
 else:
     st.info("⬆️ Esperando a que se suba un archivo Excel.")
+
