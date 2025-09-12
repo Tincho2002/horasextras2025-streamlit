@@ -289,10 +289,18 @@ if uploaded_file is not None:
                 
                 col1, col2 = st.columns(2)
                 with col1:
-                    chart_costos_mensual = alt.Chart(monthly_trends_costos_melted).mark_bar().encode(x='Mes', y='Costo ($)', color='Tipo de Costo HE').properties(title='Costos Mensuales').interactive()
+                    chart_costos_mensual = alt.Chart(monthly_trends_costos_melted).mark_bar().encode(
+                        x='Mes', 
+                        y='Costo ($)', 
+                        color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None))
+                    ).properties(title='Costos Mensuales').interactive()
                     st.altair_chart(chart_costos_mensual, use_container_width=True)
                 with col2:
-                    chart_cantidades_mensual = alt.Chart(monthly_trends_cantidades_melted).mark_bar().encode(x='Mes', y='Cantidad', color='Tipo de Cantidad HE').properties(title='Cantidades Mensuales').interactive()
+                    chart_cantidades_mensual = alt.Chart(monthly_trends_cantidades_melted).mark_bar().encode(
+                        x='Mes', 
+                        y='Cantidad', 
+                        color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None))
+                    ).properties(title='Cantidades Mensuales').interactive()
                     st.altair_chart(chart_cantidades_mensual, use_container_width=True)
             
             # --- Tarjeta 2: Tabla de Tendencias ---
@@ -335,10 +343,10 @@ if uploaded_file is not None:
                 st.header('Distribución por Gerencia y Ministerio')
                 col1, col2 = st.columns(2)
                 with col1:
-                    chart_costos_gm = alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Costos', y=alt.Y('Gerencia:N', sort='-x'), color='Ministerio').properties(title='Costos por Gerencia y Ministerio')
+                    chart_costos_gm = alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Costos', y=alt.Y('Gerencia:N', sort='-x'), color=alt.Color('Ministerio', legend=alt.Legend(orient='bottom'))).properties(title='Costos por Gerencia y Ministerio')
                     st.altair_chart(chart_costos_gm, use_container_width=True)
                 with col2:
-                    chart_cantidades_gm = alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Gerencia:N', sort='-x'), color='Ministerio').properties(title='Cantidades por Gerencia y Ministerio')
+                    chart_cantidades_gm = alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Gerencia:N', sort='-x'), color=alt.Color('Ministerio', legend=alt.Legend(orient='bottom'))).properties(title='Cantidades por Gerencia y Ministerio')
                     st.altair_chart(chart_cantidades_gm, use_container_width=True)
             with st.container(border=True):
                 st.subheader('Tabla de Distribución')
@@ -352,10 +360,10 @@ if uploaded_file is not None:
                 st.header('Distribución por Gerencia y Sexo')
                 col1, col2 = st.columns(2)
                 with col1:
-                    chart_costos_gs = alt.Chart(df_grouped_gs).mark_bar().encode(x='Total_Costos', y=alt.Y('Gerencia:N', sort='-x'), color='Sexo').properties(title='Costos por Gerencia y Sexo').interactive()
+                    chart_costos_gs = alt.Chart(df_grouped_gs).mark_bar().encode(x='Total_Costos', y=alt.Y('Gerencia:N', sort='-x'), color=alt.Color('Sexo', legend=alt.Legend(orient='bottom'))).properties(title='Costos por Gerencia y Sexo').interactive()
                     st.altair_chart(chart_costos_gs, use_container_width=True)
                 with col2:
-                    chart_cantidades_gs = alt.Chart(df_grouped_gs).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Gerencia:N', sort='-x'), color='Sexo').properties(title='Cantidades por Gerencia y Sexo').interactive()
+                    chart_cantidades_gs = alt.Chart(df_grouped_gs).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Gerencia:N', sort='-x'), color=alt.Color('Sexo', legend=alt.Legend(orient='bottom'))).properties(title='Cantidades por Gerencia y Sexo').interactive()
                     st.altair_chart(chart_cantidades_gs, use_container_width=True)
             with st.container(border=True):
                 st.subheader('Tabla de Distribución')
@@ -369,10 +377,10 @@ if uploaded_file is not None:
                 st.header('Distribución por Ministerio y Sexo')
                 col1, col2 = st.columns(2)
                 with col1:
-                    chart_costos_ms = alt.Chart(df_grouped_ms).mark_bar().encode(x='Total_Costos', y=alt.Y('Ministerio:N', sort='-x'), color='Sexo').properties(title='Costos por Ministerio y Sexo').interactive()
+                    chart_costos_ms = alt.Chart(df_grouped_ms).mark_bar().encode(x='Total_Costos', y=alt.Y('Ministerio:N', sort='-x'), color=alt.Color('Sexo', legend=alt.Legend(orient='bottom'))).properties(title='Costos por Ministerio y Sexo').interactive()
                     st.altair_chart(chart_costos_ms, use_container_width=True)
                 with col2:
-                    chart_cantidades_ms = alt.Chart(df_grouped_ms).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Ministerio:N', sort='-x'), color='Sexo').properties(title='Cantidades por Ministerio y Sexo').interactive()
+                    chart_cantidades_ms = alt.Chart(df_grouped_ms).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Ministerio:N', sort='-x'), color=alt.Color('Sexo', legend=alt.Legend(orient='bottom'))).properties(title='Cantidades por Ministerio y Sexo').interactive()
                     st.altair_chart(chart_cantidades_ms, use_container_width=True)
             with st.container(border=True):
                 st.subheader('Tabla de Distribución')
@@ -386,10 +394,10 @@ if uploaded_file is not None:
                 st.header('Distribución por Nivel y Sexo')
                 col1, col2 = st.columns(2)
                 with col1:
-                    chart_costos_ns = alt.Chart(df_grouped_ns).mark_bar().encode(x='Total_Costos', y=alt.Y('Nivel:N', sort='-x'), color='Sexo').properties(title='Costos por Nivel y Sexo').interactive()
+                    chart_costos_ns = alt.Chart(df_grouped_ns).mark_bar().encode(x='Total_Costos', y=alt.Y('Nivel:N', sort='-x'), color=alt.Color('Sexo', legend=alt.Legend(orient='bottom'))).properties(title='Costos por Nivel y Sexo').interactive()
                     st.altair_chart(chart_costos_ns, use_container_width=True)
                 with col2:
-                    chart_cantidades_ns = alt.Chart(df_grouped_ns).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Nivel:N', sort='-x'), color='Sexo').properties(title='Cantidades por Nivel y Sexo').interactive()
+                    chart_cantidades_ns = alt.Chart(df_grouped_ns).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Nivel:N', sort='-x'), color=alt.Color('Sexo', legend=alt.Legend(orient='bottom'))).properties(title='Cantidades por Nivel y Sexo').interactive()
                     st.altair_chart(chart_cantidades_ns, use_container_width=True)
             with st.container(border=True):
                 st.subheader('Tabla de Distribución')
@@ -403,10 +411,10 @@ if uploaded_file is not None:
                 st.header('Distribución por Función y Sexo')
                 col1, col2 = st.columns(2)
                 with col1:
-                    chart_costos_fs = alt.Chart(df_grouped_fs).mark_bar().encode(x='Total_Costos', y=alt.Y('Función:N', sort='-x'), color='Sexo').properties(title='Costos por Función y Sexo').interactive()
+                    chart_costos_fs = alt.Chart(df_grouped_fs).mark_bar().encode(x='Total_Costos', y=alt.Y('Función:N', sort='-x'), color=alt.Color('Sexo', legend=alt.Legend(orient='bottom'))).properties(title='Costos por Función y Sexo').interactive()
                     st.altair_chart(chart_costos_fs, use_container_width=True)
                 with col2:
-                    chart_cantidades_fs = alt.Chart(df_grouped_fs).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Función:N', sort='-x'), color='Sexo').properties(title='Cantidades por Función y Sexo').interactive()
+                    chart_cantidades_fs = alt.Chart(df_grouped_fs).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Función:N', sort='-x'), color=alt.Color('Sexo', legend=alt.Legend(orient='bottom'))).properties(title='Cantidades por Función y Sexo').interactive()
                     st.altair_chart(chart_cantidades_fs, use_container_width=True)
             with st.container(border=True):
                 st.subheader('Tabla de Distribución')
@@ -478,3 +486,4 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados')
 else:
     st.info("⬆️ Esperando a que se suba un archivo Excel.")
+
