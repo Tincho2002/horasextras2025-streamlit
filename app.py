@@ -29,13 +29,15 @@ h2 { font-size: 1.6rem; color: #4a4a4a;}
 h3 { font-size: 1.3rem; color: #5a5a5a;}
 
 /* --- LAYOUT Y CONTENEDORES (FLEXBOX RESPONSIVE) --- */
-/* CORRECCIÓN FINAL Y DIRECTA: Se ataca directamente a las columnas para forzar el apilamiento. */
+/* SOLUCIÓN FINAL: Se asegura que el contenedor de las columnas permita el salto de línea (wrap)
+   y que cada columna ocupe el 100% del ancho en pantallas pequeñas. */
 @media (max-width: 768px) {
-    /* Se le indica a CADA columna que ocupe todo el ancho disponible, forzando el apilamiento vertical. */
-    div[data-testid="column"] {
-        width: 100% !important;
+    div[data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap !important;
+    }
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
         flex: 1 1 100% !important;
-        min-width: 100% !important;
+        min-width: calc(100% - 1rem) !important;
     }
 }
 
@@ -476,4 +478,3 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados')
 else:
     st.info("⬆️ Esperando a que se suba un archivo Excel.")
-
