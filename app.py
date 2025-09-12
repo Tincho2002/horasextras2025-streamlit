@@ -29,10 +29,13 @@ h2 { font-size: 1.6rem; color: #4a4a4a;}
 h3 { font-size: 1.3rem; color: #5a5a5a;}
 
 /* --- LAYOUT Y CONTENEDORES (FLEXBOX RESPONSIVE) --- */
-/* CORRECCIÓN DEFINITIVA Y ROBUSTA: Se fuerza la dirección de la columna en pantallas pequeñas. */
+/* CORRECCIÓN FINAL Y DIRECTA: Se ataca directamente a las columnas para forzar el apilamiento. */
 @media (max-width: 768px) {
-    div[data-testid="stHorizontalBlock"] {
-        flex-direction: column !important;
+    /* Se le indica a CADA columna que ocupe todo el ancho disponible, forzando el apilamiento vertical. */
+    div[data-testid="column"] {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        min-width: 100% !important;
     }
 }
 
@@ -97,7 +100,7 @@ div[data-testid="stDownloadButton"] button:hover {
     padding: 10px 20px;
     font-weight: 600;
 }
-.stTabs [data-baseweb="tab"][aria-selected="true"] {
+.stTabs [data-basweb="tab"][aria-selected="true"] {
     background-color: #f8f7fc;
     border-bottom: 3px solid #6C5CE7;
 }
@@ -186,7 +189,7 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-    # --- FILTROS INTERACTIVOS (LÓGICA EN CASCADA DEFINITIVA) ---
+    # --- FILTROS INTERACTIVOS (LÓgica EN CASCADA DEFINITIVA) ---
     st.sidebar.header('Filtros del Dashboard')
 
     def get_sorted_unique_options(dataframe, column_name):
@@ -473,3 +476,4 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados')
 else:
     st.info("⬆️ Esperando a que se suba un archivo Excel.")
+
