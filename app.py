@@ -198,45 +198,34 @@ if uploaded_file is not None:
         """Función auxiliar para obtener opciones únicas y ordenadas para los filtros."""
         if column_name in dataframe.columns:
             unique_values = dataframe[column_name].dropna().unique().tolist()
-            if not unique_values: # Manejar el caso de una lista vacía
+            if not unique_values:
                 return []
             
-            # Lógica de ordenamiento específico para columnas
-            if column_name == 'Mes': 
-                return sorted(unique_values)
-            if column_name == 'Legajo':
+            # Lógica de ordenamiento específico para columnas numéricas almacenadas como texto
+            if column_name in ['Legajo', 'CECO']:
                 numeric_vals, non_numeric_vals = [], []
                 for val in unique_values:
                     try: 
                         numeric_vals.append(int(val))
                     except (ValueError, TypeError): 
                         non_numeric_vals.append(val)
-                # Retorna valores numéricos ordenados primero, luego los no numéricos
                 return [str(x) for x in sorted(numeric_vals)] + sorted(non_numeric_vals)
             
             return sorted(unique_values)
         return []
 
-    # Define el orden jerárquico de los filtros
     filter_cols_cascade = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
-
-    # Este dataframe se irá filtrando progresivamente en cada paso
     df_for_filters = df.copy()
 
-    # Se itera sobre cada columna de filtro para crear los widgets en cascada
     for col in filter_cols_cascade:
-        # Se obtienen las opciones disponibles del dataframe ya filtrado por los pasos anteriores
         options = get_sorted_unique_options(df_for_filters, col)
-        
-        # Se crea el widget multiselect. `default=options` asegura que todo esté seleccionado al inicio.
-        # El `key` es crucial para que Streamlit identifique cada filtro de forma única.
         selected_values = st.sidebar.multiselect(f'Selecciona {col}(s):', options, default=options, key=f"filter_{col}")
         
-        # Se aplica el filtro al dataframe para la siguiente iteración del bucle.
-        if selected_values:
-            df_for_filters = df_for_filters[df_for_filters[col].isin(selected_values)]
+        # CORRECCIÓN: Se elimina el `if selected_values:`
+        # El filtro se aplica siempre. Si `selected_values` está vacío, 
+        # `isin` devolverá un dataframe vacío, que es el comportamiento esperado.
+        df_for_filters = df_for_filters[df_for_filters[col].isin(selected_values)]
 
-    # El dataframe final que se usará en los gráficos y tablas es el resultado de toda la cascada de filtros
     filtered_df = df_for_filters
 
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
@@ -440,4 +429,3 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados')
 else:
     st.info("⬆️ Esperando a que se suba un archivo Excel.")
-
