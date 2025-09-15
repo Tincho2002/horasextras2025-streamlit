@@ -191,11 +191,11 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-    # --- FILTROS INTERACTIVOS (LÓgica EN CASCADA DEFINITIVA) ---
+    # --- FILTROS INTERACTIVOS (LÓGICA EN CASCADA CORREGIDA) ---
     st.sidebar.header('Filtros del Dashboard')
 
     def get_sorted_unique_options(dataframe, column_name):
-        """Opciones únicas y ordenadas."""
+        """Función auxiliar para obtener opciones únicas y ordenadas para los filtros."""
         if column_name in dataframe.columns:
             unique_values = dataframe[column_name].dropna().unique().tolist()
             if not unique_values:
@@ -203,44 +203,74 @@ if uploaded_file is not None:
             if column_name in ['Legajo', 'CECO']:
                 numeric_vals, non_numeric_vals = [], []
                 for val in unique_values:
-                    try:
+                    try: 
                         numeric_vals.append(int(val))
-                    except (ValueError, TypeError):
+                    except (ValueError, TypeError): 
                         non_numeric_vals.append(val)
                 return [str(x) for x in sorted(numeric_vals)] + sorted(non_numeric_vals)
             return sorted(unique_values)
         return []
-    
+
     filter_cols_cascade = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
-    
+
+    # Inicializar el estado de sesión si es la primera vez que se ejecuta.
     if 'final_selections' not in st.session_state:
         st.session_state.final_selections = {}
-    
-    df_filtered = df.copy()
-    
+
+    # df_options_scope se irá filtrando progresivamente para generar las opciones
+    # de cada filtro subsecuente.
+    df_options_scope = df.copy() 
+
+    # Esta bandera controlará el reseteo de los filtros "hijos".
+    parent_changed = False
+    new_selections = {}
+    # El dataframe que contendrá el resultado final del filtrado.
+    df_filtrado_final = df.copy()
+
     for col in filter_cols_cascade:
-        options = get_sorted_unique_options(df_filtered, col)
-        last_selection = st.session_state.final_selections.get(col, options)
-    
+        # 1. Filtros dependientes: Las opciones se calculan sobre el dataframe ya filtrado
+        #    por las selecciones de los filtros anteriores.
+        options = get_sorted_unique_options(df_options_scope, col)
+        last_selection = st.session_state.final_selections.get(col, [])
+
+        # 2. Reseteo controlado: Determinar el valor por defecto del widget.
+        if parent_changed:
+            # Si un filtro "padre" cambió, los filtros "hijos" se resetean mostrando
+            # todas las opciones disponibles en el nuevo contexto.
+            default_value = options
+        else:
+            # Si no, se intenta mantener la selección previa del usuario, siempre y
+            # cuando esas opciones sigan siendo válidas.
+            default_value = [item for item in last_selection if item in options]
+
         selection = st.sidebar.multiselect(
             f'Selecciona {col}(s):',
             options,
-            default=last_selection,
+            default=default_value,
             key=f"multiselect_{col}"
         )
-    
-        # Guardar selección
-        st.session_state.final_selections[col] = selection
-    
-        # Filtrar SOLO si hay algo seleccionado
+
+        # 3. Detección de cambios: Si esta selección es diferente a la que se le presentó
+        #    al usuario, se activa la bandera para resetear los filtros siguientes.
+        if not parent_changed and set(selection) != set(default_value):
+            parent_changed = True
+
+        new_selections[col] = selection
+
+        # 4. Aplicación del filtro y corrección del "borrado total":
         if selection:
-            df_filtered = df_filtered[df_filtered[col].isin(selection)]
-    
-    # DataFrame final filtrado
-    filtered_df = df_filtered
-    
-    st.write("Datos filtrados:")
-    st.dataframe(filtered_df)
+            # Se filtra el dataframe para la siguiente iteración (para las opciones del próximo filtro).
+            df_options_scope = df_options_scope[df_options_scope[col].isin(selection)]
+            # También se filtra el dataframe final que se usará en los gráficos y tablas.
+            df_filtrado_final = df_filtrado_final[df_filtrado_final[col].isin(selection)]
+        # Si 'selection' está vacío (el usuario no eligió nada), no se aplica ningún filtro
+        # para esta columna, solucionando el problema del borrado de datos.
+
+    # Se actualiza el estado de la sesión con las nuevas selecciones para la próxima recarga.
+    st.session_state.final_selections = new_selections
+    # Este es el dataframe final que se debe usar en el resto de la aplicación.
+    filtered_df = df_filtrado_final
+
 
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
     st.sidebar.markdown("---")
