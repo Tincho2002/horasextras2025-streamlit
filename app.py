@@ -12,7 +12,6 @@ st.set_page_config(layout="wide")
 st.markdown("""
 <style>
 /* --- GENERAL Y TIPOGRAFÍA --- */
-/* Se utiliza una fuente más moderna y se reduce el tamaño base. */
 .stApp {
     font-size: 0.92rem;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -29,8 +28,6 @@ h2 { font-size: 1.6rem; color: #4a4a4a;}
 h3 { font-size: 1.3rem; color: #5a5a5a;}
 
 /* --- LAYOUT Y CONTENEDORES (FLEXBOX RESPONSIVE) --- */
-/* SOLUCIÓN FINAL: Se asegura que el contenedor de las columnas permita el salto de línea (wrap)
-   y que cada columna ocupe el 100% del ancho en pantallas pequeñas. */
 @media (max-width: 768px) {
     div[data-testid="stHorizontalBlock"] {
         flex-wrap: wrap !important;
@@ -43,7 +40,6 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
 
 
 /* --- VISUALIZACIÓN DE TABLAS ELABORADA --- */
-/* Estilos para hacer las tablas más legibles y modernas */
 .stDataFrame {
     width: 100%;
     border: none;
@@ -70,14 +66,12 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
     text-align: right; /* Alineación de números a la derecha */
     border-bottom: 1px solid #e0e0e0;
 }
-/* La primera columna (generalmente texto) se alinea a la izquierda */
 .stDataFrame tbody td:first-child {
     text-align: left;
     font-weight: 500;
 }
 
 /* --- BOTONES DE DESCARGA --- */
-/* Se corrige el selector para ser más específico y se restauran los colores */
 div[data-testid="stDownloadButton"] button {
     background-color: #6C5CE7;
     color: white;
@@ -96,7 +90,6 @@ div[data-testid="stDownloadButton"] button:hover {
 }
 
 /* --- OTROS ELEMENTOS --- */
-/* Mejora visual de las pestañas */
 .stTabs [data-basweb="tab"] {
     border-radius: 6px 6px 0 0;
     padding: 10px 20px;
@@ -200,59 +193,49 @@ if uploaded_file is not None:
             unique_values = dataframe[column_name].dropna().unique().tolist()
             if not unique_values: return []
             try:
-                # Intenta una ordenación inteligente (números como números, texto como texto)
+                # Intenta una ordenación inteligente
                 return sorted(unique_values, key=lambda x: (isinstance(x, (int, float)), x))
             except TypeError:
                 # Si falla (mezcla de tipos), convierte todo a string y ordena
                 return sorted(map(str, unique_values))
         return []
 
-    # Inicializar el estado de la sesión si es la primera vez que se ejecuta
+    # Inicializar el estado de la sesión la primera vez, con todas las opciones seleccionadas.
     if 'selections' not in st.session_state:
-        st.session_state.selections = {col: [] for col in filter_cols}
-
-    # Función y botón para limpiar todos los filtros
-    def clear_all_filters():
-        st.session_state.selections = {col: [] for col in filter_cols}
-
-    st.sidebar.button("🧹 Limpiar Todos los Filtros", on_click=clear_all_filters, use_container_width=True)
-    st.sidebar.markdown("---")
+        st.session_state.selections = {col: get_sorted_unique_options(df, col) for col in filter_cols}
     
-    # Este dataframe se irá reduciendo en cada paso para generar las opciones del siguiente filtro
-    df_filtered_for_options = df.copy()
-    
-    # Este diccionario guardará las selecciones del usuario en esta ejecución
-    current_selections = {}
+    # Copiar el estado de la ejecución anterior para usarlo como referencia estable.
+    selections_from_last_run = st.session_state.selections.copy()
+    new_selections = {}
 
+    # Renderizar cada filtro
     for col in filter_cols:
-        options = get_sorted_unique_options(df_filtered_for_options, col)
+        df_options_scope = df.copy()
+        # Filtrar el dataframe para obtener las opciones de ESTE widget
+        for other_col, selected_values in selections_from_last_run.items():
+            if other_col != col and selected_values:
+                df_options_scope = df_options_scope[df_options_scope[other_col].isin(selected_values)]
         
-        # El valor por defecto es la selección guardada de la ejecución anterior
-        default_selection = st.session_state.selections.get(col, [])
-        # Asegurarse de que el valor por defecto sigue siendo válido
-        valid_default = [item for item in default_selection if item in options]
-        
-        selection = st.sidebar.multiselect(
+        options = get_sorted_unique_options(df_options_scope, col)
+        default_value = [item for item in selections_from_last_run.get(col, []) if item in options]
+
+        # Guardar la selección del usuario de esta ejecución en el nuevo diccionario
+        new_selections[col] = st.sidebar.multiselect(
             f'Selecciona {col}(s):',
             options,
-            default=valid_default,
+            default=default_value,
             key=f"multiselect_{col}"
         )
-        
-        # Guardar la selección actual
-        current_selections[col] = selection
-        
-        # Aplicar el filtro de este paso para el siguiente filtro en la cascada
-        if selection:
-            df_filtered_for_options = df_filtered_for_options[df_filtered_for_options[col].isin(selection)]
 
-    # Actualizar el estado de la sesión con las selecciones de esta ejecución
-    st.session_state.selections = current_selections
+    # Actualizar el estado de la sesión con las nuevas selecciones para la próxima ejecución.
+    st.session_state.selections = new_selections
     
-    # El dataframe final para los gráficos es el resultado del último filtro aplicado
-    filtered_df = df_filtered_for_options
+    # Filtrar el dataframe principal para los gráficos
+    filtered_df = df.copy()
+    for col, selected_values in st.session_state.selections.items():
+        if selected_values:
+            filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
     # --- FIN DE LA SECCIÓN DE FILTROS ---
-
 
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
     st.sidebar.markdown("---")
