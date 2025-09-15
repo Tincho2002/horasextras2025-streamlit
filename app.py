@@ -4,46 +4,32 @@ import altair as alt
 import io
 
 # --- Configuración de la página ---
-# Se mantiene el layout ancho para aprovechar el espacio.
 st.set_page_config(layout="wide")
 
 # --- CSS Personalizado para un Estilo Profesional ---
-# Se ha rediseñado completamente el CSS para mejorar la estética general.
 st.markdown("""
 <style>
 /* --- GENERAL Y TIPOGRAFÍA --- */
-/* Se utiliza una fuente más moderna y se reduce el tamaño base. */
 .stApp {
     font-size: 0.92rem;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: #333;
 }
-
-/* Estilo consistente para títulos y subtítulos */
-h1, h2, h3 {
-    font-weight: 600;
-    color: #1a1a2e;
-}
+h1, h2, h3 { font-weight: 600; color: #1a1a2e; }
 h1 { font-size: 2.2rem; border-bottom: 2px solid #6C5CE7; padding-bottom: 10px; margin-bottom: 20px;}
 h2 { font-size: 1.6rem; color: #4a4a4a;}
 h3 { font-size: 1.3rem; color: #5a5a5a;}
 
-/* --- LAYOUT Y CONTENEDORES (FLEXBOX RESPONSIVE) --- */
-/* SOLUCIÓN FINAL: Se asegura que el contenedor de las columnas permita el salto de línea (wrap)
-   y que cada columna ocupe el 100% del ancho en pantallas pequeñas. */
+/* --- LAYOUT Y CONTENEDORES RESPONSIVE --- */
 @media (max-width: 768px) {
-    div[data-testid="stHorizontalBlock"] {
-        flex-wrap: wrap !important;
-    }
+    div[data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; }
     div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
         flex: 1 1 100% !important;
         min-width: calc(100% - 1rem) !important;
     }
 }
 
-
-/* --- VISUALIZACIÓN DE TABLAS ELABORADA --- */
-/* Estilos para hacer las tablas más legibles y modernas */
+/* --- VISUALIZACIÓN DE TABLAS --- */
 .stDataFrame {
     width: 100%;
     border: none;
@@ -59,25 +45,16 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
     font-size: 0.98rem;
     border-bottom: 2px solid #5A4ADF;
 }
-.stDataFrame tbody tr:nth-of-type(even) {
-    background-color: #f8f7fc;
-}
-.stDataFrame tbody tr:hover {
-    background-color: #e9e6ff; /* Efecto hover para resaltar filas */
-}
+.stDataFrame tbody tr:nth-of-type(even) { background-color: #f8f7fc; }
+.stDataFrame tbody tr:hover { background-color: #e9e6ff; }
 .stDataFrame tbody td {
     padding: 12px 16px;
-    text-align: right; /* Alineación de números a la derecha */
+    text-align: right;
     border-bottom: 1px solid #e0e0e0;
 }
-/* La primera columna (generalmente texto) se alinea a la izquierda */
-.stDataFrame tbody td:first-child {
-    text-align: left;
-    font-weight: 500;
-}
+.stDataFrame tbody td:first-child { text-align: left; font-weight: 500; }
 
 /* --- BOTONES DE DESCARGA --- */
-/* Se corrige el selector para ser más específico y se restauran los colores */
 div[data-testid="stDownloadButton"] button {
     background-color: #6C5CE7;
     color: white;
@@ -95,8 +72,7 @@ div[data-testid="stDownloadButton"] button:hover {
     box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
 }
 
-/* --- OTROS ELEMENTOS --- */
-/* Mejora visual de las pestañas */
+/* --- PESTAÑAS --- */
 .stTabs [data-basweb="tab"] {
     border-radius: 6px 6px 0 0;
     padding: 10px 20px;
@@ -113,7 +89,7 @@ div[data-testid="stDownloadButton"] button:hover {
 st.title('📊 Dashboard de Horas Extras HE_2025')
 st.subheader('Análisis Interactivo de Costos y Cantidades de Horas Extras')
 
-# --- Funciones Auxiliares (sin cambios en la lógica) ---
+# --- Funciones Auxiliares ---
 def format_st_dataframe(df_to_style):
     numeric_cols = df_to_style.select_dtypes(include='number').columns
     format_dict = {col: '{:,.2f}' for col in numeric_cols}
@@ -121,19 +97,19 @@ def format_st_dataframe(df_to_style):
 
 def generate_download_buttons(df_to_download, filename_prefix):
     st.markdown("<h6>Opciones de Descarga:</h6>", unsafe_allow_html=True)
-    col_dl1, col_dl2, _ = st.columns([1,1,2]) # Se añade una columna vacía para espaciar
+    col_dl1, col_dl2, _ = st.columns([1,1,2])
     csv_buffer = io.StringIO()
     df_to_download.to_csv(csv_buffer, index=False)
     with col_dl1:
         st.download_button(label="⬇️ Descargar CSV", data=csv_buffer.getvalue(), file_name=f"{filename_prefix}.csv", mime="text/csv", key=f"csv_download_{filename_prefix}")
     excel_buffer = io.BytesIO()
     df_to_download.to_excel(excel_buffer, index=False, engine='openpyxl')
-    excel_buffer.seek(0)
     with col_dl2:
         st.download_button(label="📊 Descargar Excel", data=excel_buffer.getvalue(), file_name=f"{filename_prefix}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"excel_download_{filename_prefix}")
 
 @st.cache_data
 def load_and_clean_data(file_upload_obj):
+    # (El código de esta función no cambia)
     df_excel = pd.DataFrame()
     try:
         df_excel = pd.read_excel(file_upload_obj, sheet_name='Datos', dtype={'Legajo': str, 'CECO': str, 'Nivel': str})
@@ -144,7 +120,6 @@ def load_and_clean_data(file_upload_obj):
             st.error(f"ERROR CRÍTICO: No se pudo leer el archivo Excel. Mensaje: {e_no_sheet}")
             return pd.DataFrame()
     if df_excel.empty: return pd.DataFrame()
-
     if 'Legajo' in df_excel.columns:
         df_excel['Legajo'] = df_excel['Legajo'].astype(str).str.strip()
         def clean_legajo_value(val):
@@ -154,23 +129,19 @@ def load_and_clean_data(file_upload_obj):
             return s_val
         df_excel['Legajo'] = df_excel['Legajo'].apply(clean_legajo_value)
     else: df_excel['Legajo'] = 'no disponible'
-
     if 'Período' in df_excel.columns:
         df_excel['Período'] = pd.to_datetime(df_excel['Período'], errors='coerce')
         df_excel['Mes'] = df_excel['Período'].dt.strftime('%Y-%m')
         df_excel.dropna(subset=['Período'], inplace=True)
     else: df_excel['Mes'] = 'no disponible'
-
     cols_to_convert = ['Horas extras al 50 %', 'Horas extras al 50 % Sabados', 'Horas extras al 100%', 'Cantidad HE 50', 'Cant HE al 50 Sabados', 'Cantidad HE 100', 'Cantidad HE FC', 'Importe HE Fc', 'Total (Q)', 'Hora Normal', 'Hora Extra al 50%', 'Hora Extra al 50% Sabados', 'Hora Extra al 100%', 'HE FC', 'Total ($)']
     for col in cols_to_convert:
         if col in df_excel.columns: df_excel[col] = pd.to_numeric(df_excel[col], errors='coerce').fillna(0)
         else: df_excel[col] = 0
-
     cols_for_filters = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Nivel', 'Función', 'Sexo', 'Liquidación', 'Apellido y nombre', 'Legajo']
     for col in cols_for_filters:
         if col not in df_excel.columns: df_excel[col] = 'no disponible'
         df_excel[col] = df_excel[col].astype(str).str.strip().replace(['None', 'nan', ''], 'no disponible')
-
     for col_to_int in ['CECO', 'Nivel']:
         if col_to_int in df_excel.columns:
             df_excel[col_to_int] = df_excel[col_to_int].replace('no disponible', pd.NA)
@@ -192,55 +163,54 @@ if uploaded_file is not None:
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
     # --- INICIO SECCIÓN MODIFICADA ---
-    # --- FILTROS INTERACTIVOS (LÓGICA INTERDEPENDIENTE TIPO EXCEL) ---
+    # --- FILTROS INTERACTIVOS (LÓGICA INTERDEPENDIENTE Y PRE-CARGADA) ---
     st.sidebar.header('Filtros del Dashboard')
 
     def get_sorted_unique_options(dataframe, column_name):
         """Función auxiliar para obtener opciones únicas y ordenadas para los filtros."""
         if column_name in dataframe.columns:
             unique_values = dataframe[column_name].dropna().unique().tolist()
-            if not unique_values:
-                return []
+            if not unique_values: return []
             if column_name in ['Legajo', 'CECO']:
                 numeric_vals, non_numeric_vals = [], []
                 for val in unique_values:
-                    try: 
-                        numeric_vals.append(int(val))
-                    except (ValueError, TypeError): 
-                        non_numeric_vals.append(val)
+                    try: numeric_vals.append(int(val))
+                    except (ValueError, TypeError): non_numeric_vals.append(val)
                 return [str(x) for x in sorted(numeric_vals)] + sorted(non_numeric_vals)
             return sorted(unique_values)
         return []
 
     filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
 
-    # Inicializar el estado de las selecciones si no existe
+    # --- CAMBIO CLAVE ---
+    # Inicializar el estado de las selecciones.
+    # En el primer inicio, se preseleccionan TODAS las opciones para cada filtro.
     if 'selections' not in st.session_state:
-        st.session_state.selections = {col: [] for col in filter_cols}
-
-    # Guardar una copia de las selecciones actuales para determinar las opciones de los filtros
-    # Esto es clave para que los filtros sean interdependientes
-    active_selections_for_options = st.session_state.selections.copy()
-
+        st.session_state.selections = {}
+        for col in filter_cols:
+            # Usamos la función auxiliar para obtener todas las opciones únicas y ordenadas del dataframe original
+            all_options = get_sorted_unique_options(df, col)
+            st.session_state.selections[col] = all_options
+            
     # Iterar sobre cada columna de filtro para crear su widget
     for col in filter_cols:
         # Crear un dataframe temporal que esté filtrado por TODAS las selecciones EXCEPTO la actual
         df_filtered_for_options = df.copy()
-        for other_col, selected_values in active_selections_for_options.items():
+        for other_col, selected_values in st.session_state.selections.items():
             if other_col != col and selected_values:
                 df_filtered_for_options = df_filtered_for_options[df_filtered_for_options[other_col].isin(selected_values)]
 
         # Obtener las opciones únicas y ordenadas del dataframe temporal
         options = get_sorted_unique_options(df_filtered_for_options, col)
         
-        # Obtener la selección previa para este filtro, asegurándose de que los valores aún son válidos
-        previous_selection_for_col = [item for item in active_selections_for_options.get(col, []) if item in options]
+        # Obtener la selección actual para este filtro, asegurándose de que los valores aún son válidos
+        current_selection_for_col = [item for item in st.session_state.selections.get(col, []) if item in options]
 
-        # Crear el widget multiselect y guardar la nueva selección
+        # Crear el widget multiselect y actualizar el estado de la selección para este filtro
         st.session_state.selections[col] = st.sidebar.multiselect(
             f'Selecciona {col}(s):',
             options,
-            default=previous_selection_for_col,
+            default=current_selection_for_col,
             key=f"multiselect_{col}"
         )
 
@@ -250,9 +220,12 @@ if uploaded_file is not None:
         if selected_values:
             filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
     # --- FIN SECCIÓN MODIFICADA ---
-
-
+    
+    # (El resto del código de la app no cambia y continúa desde aquí)
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
+    # ... (El resto del script es idéntico al anterior) ...
+
+    # El resto del código de la app no cambia y continúa desde aquí
     st.sidebar.markdown("---")
     st.sidebar.subheader("Selección de Tipos de Horas Extras")
     cost_columns_options = {'Horas extras al 50 %': 'Horas extras al 50 %', 'Horas extras al 50 % Sabados': 'Horas extras al 50 % Sabados', 'Horas extras al 100%': 'Horas extras al 100%', 'Importe HE Fc': 'Importe HE Fc'}
@@ -268,7 +241,6 @@ if uploaded_file is not None:
     tab1, tab2, tab3, tab_valor_hora, tab4 = st.tabs(["📈 Resumen y Tendencias", "🏢 Desglose Organizacional", "👤 Empleados Destacados", "⚖️ Valor Hora", "📋 Datos Brutos"])
     
     # --- Paleta de Colores Consistente ---
-    # Se define una paleta de colores para que las categorías equivalentes tengan el mismo color
     color_domain = ['Horas extras al 50 %', 'Horas extras al 50 % Sabados', 'Horas extras al 100%', 'Importe HE Fc', 'Cantidad HE 50', 'Cant HE al 50 Sabados', 'Cantidad HE 100', 'Cantidad HE FC']
     color_range = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
 
@@ -285,7 +257,6 @@ if uploaded_file is not None:
             col1, col2 = st.columns(2)
             with col1:
                 with st.container(border=True):
-                    # --- Gráfico de Costos (Combinado) ---
                     cost_bars_vars = [col for col in selected_cost_types_internal if col in monthly_trends_agg.columns]
                     monthly_trends_costos_melted_bars = monthly_trends_agg.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
 
@@ -310,7 +281,6 @@ if uploaded_file is not None:
 
             with col2:
                 with st.container(border=True):
-                    # --- Gráfico de Cantidades (Combinado) ---
                     quantity_bars_vars = [col for col in selected_quantity_types_internal if col in monthly_trends_agg.columns]
                     monthly_trends_cantidades_melted_bars = monthly_trends_agg.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
                     
@@ -362,6 +332,7 @@ if uploaded_file is not None:
                 generate_download_buttons(monthly_trends_for_var, 'variaciones_mensuales')
 
     with tab2:
+        # El código de las pestañas 2, 3, 4 y valor_hora no cambia
         if filtered_df.empty: st.warning("No hay datos para mostrar.")
         else:
             df_grouped_gm = filtered_df.groupby(['Gerencia', 'Ministerio']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
