@@ -6,7 +6,7 @@ import io
 # --- Configuración de la página ---
 st.set_page_config(layout="wide")
 
-# --- CSS Personalizado para un Estilo Profesional ---
+# --- CSS Personalizado (Sin cambios) ---
 st.markdown("""
 <style>
 /* --- GENERAL Y TIPOGRAFÍA --- */
@@ -89,7 +89,7 @@ div[data-testid="stDownloadButton"] button:hover {
 st.title('📊 Dashboard de Horas Extras HE_2025')
 st.subheader('Análisis Interactivo de Costos y Cantidades de Horas Extras')
 
-# --- Funciones Auxiliares ---
+# --- Funciones Auxiliares (Sin cambios) ---
 def format_st_dataframe(df_to_style):
     numeric_cols = df_to_style.select_dtypes(include='number').columns
     format_dict = {col: '{:,.2f}' for col in numeric_cols}
@@ -162,12 +162,12 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-    # --- INICIO SECCIÓN MODIFICADA ---
-    # --- FILTROS INTERACTIVOS (LÓGICA FINAL Y ROBUSTA) ---
+    # --- INICIO SECCIÓN MODIFICADA (LÓGICA CON CALLBACKS) ---
     st.sidebar.header('Filtros del Dashboard')
+    
+    filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
 
     def get_sorted_unique_options(dataframe, column_name):
-        """Función auxiliar para obtener opciones únicas y ordenadas para los filtros."""
         if column_name in dataframe.columns:
             unique_values = dataframe[column_name].dropna().unique().tolist()
             if not unique_values: return []
@@ -180,50 +180,67 @@ if uploaded_file is not None:
             return sorted(unique_values)
         return []
 
-    filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
-
-    # Inicializar el estado de las selecciones si no existe.
-    if 'selections' not in st.session_state:
-        st.session_state.selections = {}
-        for col in filter_cols:
-            st.session_state.selections[col] = get_sorted_unique_options(df, col)
-            
-    # --- LÓGICA DE FILTRADO CORREGIDA ---
-    # 1. Guardar una copia del estado ANTERIOR para usarla en la lógica de esta ejecución.
-    selections_before_render = st.session_state.selections.copy()
-    # 2. Crear un diccionario nuevo para guardar las selecciones de la ejecución ACTUAL.
-    new_selections = {}
-
-    # 3. Iterar y renderizar cada filtro.
-    for col in filter_cols:
-        # Calcular las opciones disponibles para ESTE filtro, basándose en las selecciones de TODOS los OTROS filtros.
-        df_filtered_for_options = df.copy()
-        for other_col, selected_values in selections_before_render.items():
-            if other_col != col and selected_values:
-                df_filtered_for_options = df_filtered_for_options[df_filtered_for_options[other_col].isin(selected_values)]
-
-        options = get_sorted_unique_options(df_filtered_for_options, col)
+    # Función de Callback: se ejecuta CADA VEZ que un filtro cambia.
+    def update_filters():
+        # Obtener el filtro que acaba de cambiar (el que disparó el callback)
+        changed_filter_key = st.session_state.last_changed_filter
         
-        # Determinar el valor por defecto para este filtro, usando el estado anterior.
-        default_value = [item for item in selections_before_render.get(col, []) if item in options]
+        # Crear un dataframe filtrado con la selección ACTUAL de todos los filtros
+        temp_df = df.copy()
+        for col in filter_cols:
+            if st.session_state[f"filter_{col}"]:
+                temp_df = temp_df[temp_df[col].isin(st.session_state[f"filter_{col}"])]
+        
+        # Actualizar las selecciones de los otros filtros para que no queden "huérfanas"
+        for col in filter_cols:
+            # No actualizar el filtro que el usuario acaba de modificar
+            if col != changed_filter_key:
+                # Obtener las opciones válidas para este filtro, basado en las selecciones de los demás
+                df_options_scope = df.copy()
+                for other_col in filter_cols:
+                    if col != other_col and st.session_state[f"filter_{other_col}"]:
+                         df_options_scope = df_options_scope[df_options_scope[other_col].isin(st.session_state[f"filter_{other_col}"])]
+                
+                valid_options = get_sorted_unique_options(df_options_scope, col)
+                
+                # Dejar seleccionados solo los valores que siguen siendo válidos
+                current_selection = st.session_state[f"filter_{col}"]
+                new_selection = [item for item in current_selection if item in valid_options]
+                st.session_state[f"filter_{col}"] = new_selection
 
-        # Renderizar el widget y guardar su valor en el NUEVO diccionario de selecciones.
-        new_selections[col] = st.sidebar.multiselect(
+    # Inicialización del estado de la sesión (solo la primera vez)
+    if 'initialized' not in st.session_state:
+        st.session_state.initialized = True
+        # Guardar las opciones completas para cada filtro
+        st.session_state.options = {col: get_sorted_unique_options(df, col) for col in filter_cols}
+        # Preseleccionar todas las opciones al inicio
+        for col in filter_cols:
+            st.session_state[f"filter_{col}"] = st.session_state.options[col]
+        st.session_state.last_changed_filter = None
+
+    # Renderizado de los filtros en la barra lateral
+    for col in filter_cols:
+        # Calcular las opciones para el widget actual
+        df_options_scope = df.copy()
+        for other_col in filter_cols:
+            if col != other_col and st.session_state[f"filter_{other_col}"]:
+                df_options_scope = df_options_scope[df_options_scope[other_col].isin(st.session_state[f"filter_{other_col}"])]
+        
+        current_options = get_sorted_unique_options(df_options_scope, col)
+
+        st.sidebar.multiselect(
             f'Selecciona {col}(s):',
-            options,
-            default=default_value,
-            key=f"multiselect_{col}"
+            options=current_options,
+            key=f"filter_{col}",
+            # En el 'on_change', guardamos cuál fue el último filtro modificado y llamamos al callback
+            on_change=lambda col_name=col: setattr(st.session_state, 'last_changed_filter', col_name) or update_filters()
         )
 
-    # 4. Al final de la renderización, actualizar el estado de la sesión con las nuevas selecciones.
-    st.session_state.selections = new_selections
-    # --- FIN DE LA LÓGICA DE FILTRADO ---
-    
-    # Filtrar el dataframe principal con TODAS las selecciones activas.
+    # Filtrar el dataframe principal para los gráficos y tablas
     filtered_df = df.copy()
-    for col, selected_values in st.session_state.selections.items():
-        if selected_values:
-            filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
+    for col in filter_cols:
+        if st.session_state[f"filter_{col}"]:
+            filtered_df = filtered_df[filtered_df[col].isin(st.session_state[f"filter_{col}"])]
     # --- FIN SECCIÓN MODIFICADA ---
     
     # (El resto del código de la app no cambia y continúa desde aquí)
@@ -239,14 +256,14 @@ if uploaded_file is not None:
 
     st.info(f"Mostrando **{len(filtered_df)}** registros según los filtros aplicados.")
 
-    # --- PESTAÑAS ---
+    # --- PESTAÑAS (Sin cambios) ---
     tab1, tab2, tab3, tab_valor_hora, tab4 = st.tabs(["📈 Resumen y Tendencias", "🏢 Desglose Organizacional", "👤 Empleados Destacados", "⚖️ Valor Hora", "📋 Datos Brutos"])
     
-    # --- Paleta de Colores Consistente ---
+    # --- Paleta de Colores (Sin cambios) ---
     color_domain = ['Horas extras al 50 %', 'Horas extras al 50 % Sabados', 'Horas extras al 100%', 'Importe HE Fc', 'Cantidad HE 50', 'Cant HE al 50 Sabados', 'Cantidad HE 100', 'Cantidad HE FC']
     color_range = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
 
-
+    # (El código para el contenido de las pestañas no cambia)
     with tab1:
         if filtered_df.empty:
             st.warning("No hay datos para mostrar con los filtros seleccionados.")
@@ -332,9 +349,7 @@ if uploaded_file is not None:
                 df_variaciones = monthly_trends_for_var[['Mes', 'Total_Costos', 'Variacion_Costos_Abs', 'Variacion_Costos_Pct', 'Total_Cantidades', 'Variacion_Cantidades_Abs', 'Variacion_Cantidades_Pct']]
                 st.dataframe(format_st_dataframe(df_variaciones), use_container_width=True)
                 generate_download_buttons(monthly_trends_for_var, 'variaciones_mensuales')
-
     with tab2:
-        # El código de las pestañas 2, 3, 4 y valor_hora no cambia
         if filtered_df.empty: st.warning("No hay datos para mostrar.")
         else:
             df_grouped_gm = filtered_df.groupby(['Gerencia', 'Ministerio']).agg(**{col_name: pd.NamedAgg(column=col_name, aggfunc='sum') for col_name in set(list(cost_columns_options.values()) + list(quantity_columns_options.values())) if col_name in filtered_df.columns}).reset_index()
@@ -426,7 +441,6 @@ if uploaded_file is not None:
                 st.subheader('Tabla de Distribución')
                 st.dataframe(format_st_dataframe(df_grouped_fs), use_container_width=True)
                 generate_download_buttons(df_grouped_fs, 'distribucion_funcion_sexo')
-
     with tab3:
         if filtered_df.empty:
             st.warning("No hay datos para mostrar.")
@@ -485,7 +499,6 @@ if uploaded_file is not None:
                     generate_download_buttons(df_valor_hora, f'valores_promedio_hora_por_{grouping_dimension}')
                 else:
                     st.warning("Columnas de valor por hora no encontradas.")
-
     with tab4:
         with st.container(border=True):
             st.header('Tabla de Datos Brutos Filtrados')
