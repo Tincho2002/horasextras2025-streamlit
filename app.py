@@ -8,7 +8,6 @@ import io
 st.set_page_config(layout="wide")
 
 # --- CSS Personalizado para un Estilo Profesional ---
-# Se ha rediseñado completamente el CSS para mejorar la estética general.
 st.markdown("""
 <style>
 /* --- GENERAL Y TIPOGRAFÍA --- */
@@ -17,6 +16,14 @@ st.markdown("""
     font-size: 0.92rem;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: #333;
+}
+
+/* --- COLORES BASE DEL TEMA --- */
+/* V-- SECCIÓN NUEVA PARA CENTRALIZAR COLORES --V */
+[data-testid="stSidebar"],
+[data-testid="stVerticalBlockBorderWrapper"],
+.stTabs [data-basweb="tab"][aria-selected="true"] {
+    background-color: #f8f7fc;
 }
 
 /* Estilo consistente para títulos y subtítulos */
@@ -39,14 +46,12 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
     }
 }
 
-
 /* --- VISUALIZACIÓN DE TABLAS ELABORADA --- */
 .stDataFrame {
     width: 100%;
     border: none;
     border-radius: 8px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-    background-color: #ffffff; /* Asegura que la tabla sea blanca */
 }
 .stDataFrame thead th {
     background-color: #6C5CE7;
@@ -57,15 +62,16 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
     font-size: 0.98rem;
     border-bottom: 2px solid #5A4ADF;
 }
+/* El color de las filas pares ahora coincide con el fondo de los contenedores */
 .stDataFrame tbody tr:nth-of-type(even) {
     background-color: #f8f7fc;
 }
 .stDataFrame tbody tr:hover {
-    background-color: #e9e6ff; /* Efecto hover para resaltar filas */
+    background-color: #e9e6ff;
 }
 .stDataFrame tbody td {
     padding: 12px 16px;
-    text-align: right; /* Alineación de números a la derecha */
+    text-align: right;
     border-bottom: 1px solid #e0e0e0;
 }
 .stDataFrame tbody td:first-child {
@@ -91,21 +97,15 @@ div[data-testid="stDownloadButton"] button:hover {
     box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
 }
 
-/* --- OTROS ELEMENTOS --- */
+/* --- PESTAÑAS (TABS) --- */
 .stTabs [data-basweb="tab"] {
     border-radius: 6px 6px 0 0;
     padding: 10px 20px;
     font-weight: 600;
 }
+/* La pestaña seleccionada ya usaba este color, se mantiene la regla por especificidad */
 .stTabs [data-basweb="tab"][aria-selected="true"] {
-    background-color: #f8f7fc;
     border-bottom: 3px solid #6C5CE7;
-}
-
-/* --- ESTILO DE LA BARRA LATERAL (SIDEBAR) --- */
-/* V-- ESTA ES LA SECCIÓN AGREGADA --V  */
-[data-testid="stSidebar"] {
-    background-color: #ffffff;
 }
 
 </style>
