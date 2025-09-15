@@ -163,7 +163,7 @@ if uploaded_file is not None:
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
     # --- INICIO SECCIÓN MODIFICADA ---
-    # --- FILTROS INTERACTIVOS (LÓGICA INTERDEPENDIENTE Y PRE-CARGADA) ---
+    # --- FILTROS INTERACTIVOS (LÓGICA FINAL Y ROBUSTA) ---
     st.sidebar.header('Filtros del Dashboard')
 
     def get_sorted_unique_options(dataframe, column_name):
@@ -182,39 +182,44 @@ if uploaded_file is not None:
 
     filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
 
-    # --- CAMBIO CLAVE ---
-    # Inicializar el estado de las selecciones.
-    # En el primer inicio, se preseleccionan TODAS las opciones para cada filtro.
+    # Inicializar el estado de las selecciones si no existe.
     if 'selections' not in st.session_state:
         st.session_state.selections = {}
         for col in filter_cols:
-            # Usamos la función auxiliar para obtener todas las opciones únicas y ordenadas del dataframe original
-            all_options = get_sorted_unique_options(df, col)
-            st.session_state.selections[col] = all_options
+            st.session_state.selections[col] = get_sorted_unique_options(df, col)
             
-    # Iterar sobre cada columna de filtro para crear su widget
+    # --- LÓGICA DE FILTRADO CORREGIDA ---
+    # 1. Guardar una copia del estado ANTERIOR para usarla en la lógica de esta ejecución.
+    selections_before_render = st.session_state.selections.copy()
+    # 2. Crear un diccionario nuevo para guardar las selecciones de la ejecución ACTUAL.
+    new_selections = {}
+
+    # 3. Iterar y renderizar cada filtro.
     for col in filter_cols:
-        # Crear un dataframe temporal que esté filtrado por TODAS las selecciones EXCEPTO la actual
+        # Calcular las opciones disponibles para ESTE filtro, basándose en las selecciones de TODOS los OTROS filtros.
         df_filtered_for_options = df.copy()
-        for other_col, selected_values in st.session_state.selections.items():
+        for other_col, selected_values in selections_before_render.items():
             if other_col != col and selected_values:
                 df_filtered_for_options = df_filtered_for_options[df_filtered_for_options[other_col].isin(selected_values)]
 
-        # Obtener las opciones únicas y ordenadas del dataframe temporal
         options = get_sorted_unique_options(df_filtered_for_options, col)
         
-        # Obtener la selección actual para este filtro, asegurándose de que los valores aún son válidos
-        current_selection_for_col = [item for item in st.session_state.selections.get(col, []) if item in options]
+        # Determinar el valor por defecto para este filtro, usando el estado anterior.
+        default_value = [item for item in selections_before_render.get(col, []) if item in options]
 
-        # Crear el widget multiselect y actualizar el estado de la selección para este filtro
-        st.session_state.selections[col] = st.sidebar.multiselect(
+        # Renderizar el widget y guardar su valor en el NUEVO diccionario de selecciones.
+        new_selections[col] = st.sidebar.multiselect(
             f'Selecciona {col}(s):',
             options,
-            default=current_selection_for_col,
+            default=default_value,
             key=f"multiselect_{col}"
         )
 
-    # Filtrar el dataframe principal con TODAS las selecciones activas para los gráficos y tablas
+    # 4. Al final de la renderización, actualizar el estado de la sesión con las nuevas selecciones.
+    st.session_state.selections = new_selections
+    # --- FIN DE LA LÓGICA DE FILTRADO ---
+    
+    # Filtrar el dataframe principal con TODAS las selecciones activas.
     filtered_df = df.copy()
     for col, selected_values in st.session_state.selections.items():
         if selected_values:
@@ -223,9 +228,6 @@ if uploaded_file is not None:
     
     # (El resto del código de la app no cambia y continúa desde aquí)
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
-    # ... (El resto del script es idéntico al anterior) ...
-
-    # El resto del código de la app no cambia y continúa desde aquí
     st.sidebar.markdown("---")
     st.sidebar.subheader("Selección de Tipos de Horas Extras")
     cost_columns_options = {'Horas extras al 50 %': 'Horas extras al 50 %', 'Horas extras al 50 % Sabados': 'Horas extras al 50 % Sabados', 'Horas extras al 100%': 'Horas extras al 100%', 'Importe HE Fc': 'Importe HE Fc'}
