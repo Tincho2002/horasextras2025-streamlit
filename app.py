@@ -198,40 +198,41 @@ if uploaded_file is not None:
                 return sorted(map(str, unique_values))
         return []
 
+    # Inicializar el estado de la sesión la primera vez, con todas las opciones seleccionadas.
     if 'selections' not in st.session_state:
-        st.session_state.selections = {col: [] for col in filter_cols}
-
-    def clear_all_filters():
-        st.session_state.selections = {col: [] for col in filter_cols}
-
-    st.sidebar.button("🧹 Limpiar Todos los Filtros", on_click=clear_all_filters, use_container_width=True)
-    st.sidebar.markdown("---")
-
-    df_filtered_for_options = df.copy()
+        st.session_state.selections = {col: get_sorted_unique_options(df, col) for col in filter_cols}
     
+    # Copiar el estado de la ejecución anterior para usarlo como referencia estable.
+    selections_from_last_run = st.session_state.selections.copy()
+    new_selections = {}
+
+    # Renderizar cada filtro
     for col in filter_cols:
-        options = get_sorted_unique_options(df_filtered_for_options, col)
+        df_options_scope = df.copy()
+        # Filtrar el dataframe para obtener las opciones de ESTE widget
+        for other_col, selected_values in selections_from_last_run.items():
+            if other_col != col and selected_values:
+                df_options_scope = df_options_scope[df_options_scope[other_col].isin(selected_values)]
         
-        # El valor por defecto es la selección guardada de la ejecución anterior
-        default_selection = st.session_state.selections.get(col, [])
-        # Asegurarse de que el valor por defecto sigue siendo válido
-        valid_default = [item for item in default_selection if item in options]
-        
-        selection = st.sidebar.multiselect(
+        options = get_sorted_unique_options(df_options_scope, col)
+        default_value = [item for item in selections_from_last_run.get(col, []) if item in options]
+
+        # Guardar la selección del usuario de esta ejecución en el nuevo diccionario
+        new_selections[col] = st.sidebar.multiselect(
             f'Selecciona {col}(s):',
             options,
-            default=valid_default,
+            default=default_value,
             key=f"multiselect_{col}"
         )
-        
-        # Actualizar el estado de la sesión con la selección del usuario
-        st.session_state.selections[col] = selection
-        
-        # Aplicar el filtro de este paso para el siguiente filtro en la cascada
-        if selection:
-            df_filtered_for_options = df_filtered_for_options[df_filtered_for_options[col].isin(selection)]
 
-    filtered_df = df_filtered_for_options
+    # Actualizar el estado de la sesión con las nuevas selecciones para la próxima ejecución.
+    st.session_state.selections = new_selections
+    
+    # Filtrar el dataframe principal para los gráficos
+    filtered_df = df.copy()
+    for col, selected_values in st.session_state.selections.items():
+        if selected_values:
+            filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
     # --- FIN DE LA SECCIÓN DE FILTROS ---
 
 
