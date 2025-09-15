@@ -4,17 +4,22 @@ import altair as alt
 import io
 
 # --- Configuración de la página ---
+# Se mantiene el layout ancho para aprovechar el espacio.
 st.set_page_config(layout="wide")
 
-# --- CSS Personalizado (de tu código original) ---
+# --- CSS Personalizado para un Estilo Profesional ---
+# Se ha rediseñado completamente el CSS para mejorar la estética general.
 st.markdown("""
 <style>
 /* --- GENERAL Y TIPOGRAFÍA --- */
+/* Se utiliza una fuente más moderna y se reduce el tamaño base. */
 .stApp {
     font-size: 0.92rem;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: #333;
 }
+
+/* Estilo consistente para títulos y subtítulos */
 h1, h2, h3 {
     font-weight: 600;
     color: #1a1a2e;
@@ -24,6 +29,8 @@ h2 { font-size: 1.6rem; color: #4a4a4a;}
 h3 { font-size: 1.3rem; color: #5a5a5a;}
 
 /* --- LAYOUT Y CONTENEDORES (FLEXBOX RESPONSIVE) --- */
+/* SOLUCIÓN FINAL: Se asegura que el contenedor de las columnas permita el salto de línea (wrap)
+   y que cada columna ocupe el 100% del ancho en pantallas pequeñas. */
 @media (max-width: 768px) {
     div[data-testid="stHorizontalBlock"] {
         flex-wrap: wrap !important;
@@ -36,6 +43,7 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
 
 
 /* --- VISUALIZACIÓN DE TABLAS ELABORADA --- */
+/* Estilos para hacer las tablas más legibles y modernas */
 .stDataFrame {
     width: 100%;
     border: none;
@@ -62,12 +70,14 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
     text-align: right; /* Alineación de números a la derecha */
     border-bottom: 1px solid #e0e0e0;
 }
+/* La primera columna (generalmente texto) se alinea a la izquierda */
 .stDataFrame tbody td:first-child {
     text-align: left;
     font-weight: 500;
 }
 
 /* --- BOTONES DE DESCARGA --- */
+/* Se corrige el selector para ser más específico y se restauran los colores */
 div[data-testid="stDownloadButton"] button {
     background-color: #6C5CE7;
     color: white;
@@ -86,6 +96,7 @@ div[data-testid="stDownloadButton"] button:hover {
 }
 
 /* --- OTROS ELEMENTOS --- */
+/* Mejora visual de las pestañas */
 .stTabs [data-basweb="tab"] {
     border-radius: 6px 6px 0 0;
     padding: 10px 20px;
@@ -102,7 +113,7 @@ div[data-testid="stDownloadButton"] button:hover {
 st.title('📊 Dashboard de Horas Extras HE_2025')
 st.subheader('Análisis Interactivo de Costos y Cantidades de Horas Extras')
 
-# --- Funciones Auxiliares (de tu código original) ---
+# --- Funciones Auxiliares (sin cambios en la lógica) ---
 def format_st_dataframe(df_to_style):
     numeric_cols = df_to_style.select_dtypes(include='number').columns
     format_dict = {col: '{:,.2f}' for col in numeric_cols}
@@ -110,13 +121,14 @@ def format_st_dataframe(df_to_style):
 
 def generate_download_buttons(df_to_download, filename_prefix):
     st.markdown("<h6>Opciones de Descarga:</h6>", unsafe_allow_html=True)
-    col_dl1, col_dl2, _ = st.columns([1,1,2])
+    col_dl1, col_dl2, _ = st.columns([1,1,2]) # Se añade una columna vacía para espaciar
     csv_buffer = io.StringIO()
     df_to_download.to_csv(csv_buffer, index=False)
     with col_dl1:
         st.download_button(label="⬇️ Descargar CSV", data=csv_buffer.getvalue(), file_name=f"{filename_prefix}.csv", mime="text/csv", key=f"csv_download_{filename_prefix}")
     excel_buffer = io.BytesIO()
     df_to_download.to_excel(excel_buffer, index=False, engine='openpyxl')
+    excel_buffer.seek(0)
     with col_dl2:
         st.download_button(label="📊 Descargar Excel", data=excel_buffer.getvalue(), file_name=f"{filename_prefix}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"excel_download_{filename_prefix}")
 
@@ -179,59 +191,71 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-    # --- INICIO DE LA SECCIÓN DE FILTROS MODIFICADA ---
+    # --- FILTROS INTERACTIVOS (LÓgica EN CASCADA DEFINITIVA) ---
     st.sidebar.header('Filtros del Dashboard')
 
-    filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
-
     def get_sorted_unique_options(dataframe, column_name):
-        if column_name in dataframe.columns and not dataframe.empty:
+        """Función auxiliar para obtener opciones únicas y ordenadas para los filtros."""
+        if column_name in dataframe.columns:
             unique_values = dataframe[column_name].dropna().unique().tolist()
-            if not unique_values: return []
-            try:
-                # Intenta una ordenación inteligente
-                return sorted(unique_values, key=lambda x: (isinstance(x, (int, float)), x))
-            except TypeError:
-                # Si falla (mezcla de tipos), convierte todo a string y ordena
-                return sorted(map(str, unique_values))
+            if not unique_values:
+                return []
+            if column_name in ['Legajo', 'CECO']:
+                numeric_vals, non_numeric_vals = [], []
+                for val in unique_values:
+                    try: 
+                        numeric_vals.append(int(val))
+                    except (ValueError, TypeError): 
+                        non_numeric_vals.append(val)
+                return [str(x) for x in sorted(numeric_vals)] + sorted(non_numeric_vals)
+            return sorted(unique_values)
         return []
 
-    # Inicializar el estado de la sesión la primera vez, con todas las opciones seleccionadas.
-    if 'selections' not in st.session_state:
-        st.session_state.selections = {col: get_sorted_unique_options(df, col) for col in filter_cols}
-    
-    # Copiar el estado de la ejecución anterior para usarlo como referencia estable.
-    selections_from_last_run = st.session_state.selections.copy()
+    filter_cols_cascade = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
+
+    if 'final_selections' not in st.session_state:
+        st.session_state.final_selections = {}
+
+    df_options_scope = df.copy()
     new_selections = {}
+    parent_changed = False
 
-    # Renderizar cada filtro
-    for col in filter_cols:
-        df_options_scope = df.copy()
-        # Filtrar el dataframe para obtener las opciones de ESTE widget
-        for other_col, selected_values in selections_from_last_run.items():
-            if other_col != col and selected_values:
-                df_options_scope = df_options_scope[df_options_scope[other_col].isin(selected_values)]
-        
+    for col in filter_cols_cascade:
         options = get_sorted_unique_options(df_options_scope, col)
-        default_value = [item for item in selections_from_last_run.get(col, []) if item in options]
+        last_selection = st.session_state.final_selections.get(col, [])
 
-        # Guardar la selección del usuario de esta ejecución en el nuevo diccionario
-        new_selections[col] = st.sidebar.multiselect(
+        # Determinar el valor por defecto
+        if parent_changed:
+            default_value = options
+        else:
+            default_value = [item for item in last_selection if item in options]
+            if not default_value and last_selection:
+                default_value = options
+            elif not last_selection:
+                default_value = options
+
+        selection = st.sidebar.multiselect(
             f'Selecciona {col}(s):',
             options,
             default=default_value,
             key=f"multiselect_{col}"
         )
 
-    # Actualizar el estado de la sesión con las nuevas selecciones para la próxima ejecución.
-    st.session_state.selections = new_selections
+        # Si este filtro cambió, todos los filtros siguientes deben resetearse
+        if not parent_changed and set(selection) != set(last_selection):
+            parent_changed = True
+
+        new_selections[col] = selection
+
+        # Filtrar el dataframe que define las opciones para el siguiente filtro
+        if selection:
+            df_options_scope = df_options_scope[df_options_scope[col].isin(selection)]
+        else:
+            # Si un filtro se vacía, los hijos no tendrán opciones.
+            df_options_scope = df_options_scope[df_options_scope[col].isin([])]
     
-    # Filtrar el dataframe principal para los gráficos
-    filtered_df = df.copy()
-    for col, selected_values in st.session_state.selections.items():
-        if selected_values:
-            filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
-    # --- FIN DE LA SECCIÓN DE FILTROS ---
+    st.session_state.final_selections = new_selections
+    filtered_df = df_options_scope
 
 
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
@@ -246,9 +270,11 @@ if uploaded_file is not None:
 
     st.info(f"Mostrando **{len(filtered_df)}** registros según los filtros aplicados.")
 
-    # --- PESTAÑAS (de tu código original) ---
+    # --- PESTAÑAS ---
     tab1, tab2, tab3, tab_valor_hora, tab4 = st.tabs(["📈 Resumen y Tendencias", "🏢 Desglose Organizacional", "👤 Empleados Destacados", "⚖️ Valor Hora", "📋 Datos Brutos"])
     
+    # --- Paleta de Colores Consistente ---
+    # Se define una paleta de colores para que las categorías equivalentes tengan el mismo color
     color_domain = ['Horas extras al 50 %', 'Horas extras al 50 % Sabados', 'Horas extras al 100%', 'Importe HE Fc', 'Cantidad HE 50', 'Cant HE al 50 Sabados', 'Cantidad HE 100', 'Cantidad HE FC']
     color_range = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
 
@@ -265,6 +291,7 @@ if uploaded_file is not None:
             col1, col2 = st.columns(2)
             with col1:
                 with st.container(border=True):
+                    # --- Gráfico de Costos (Combinado) ---
                     cost_bars_vars = [col for col in selected_cost_types_internal if col in monthly_trends_agg.columns]
                     monthly_trends_costos_melted_bars = monthly_trends_agg.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
 
@@ -289,6 +316,7 @@ if uploaded_file is not None:
 
             with col2:
                 with st.container(border=True):
+                    # --- Gráfico de Cantidades (Combinado) ---
                     quantity_bars_vars = [col for col in selected_quantity_types_internal if col in monthly_trends_agg.columns]
                     monthly_trends_cantidades_melted_bars = monthly_trends_agg.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
                     
