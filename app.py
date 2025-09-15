@@ -4,11 +4,9 @@ import altair as alt
 import io
 
 # --- Configuración de la página ---
-# Se mantiene el layout ancho para aprovechar el espacio.
 st.set_page_config(layout="wide")
 
-# --- CSS Personalizado para un Estilo Profesional ---
-# (Tu CSS original se mantiene intacto)
+# --- CSS Personalizado (de tu código original) ---
 st.markdown("""
 <style>
 /* --- GENERAL Y TIPOGRAFÍA --- */
@@ -235,7 +233,6 @@ if uploaded_file is not None:
             filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
     # --- FIN DE LA SECCIÓN DE FILTROS ---
 
-
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
     st.sidebar.markdown("---")
     st.sidebar.subheader("Selección de Tipos de Horas Extras")
@@ -253,7 +250,6 @@ if uploaded_file is not None:
     
     color_domain = ['Horas extras al 50 %', 'Horas extras al 50 % Sabados', 'Horas extras al 100%', 'Importe HE Fc', 'Cantidad HE 50', 'Cant HE al 50 Sabados', 'Cantidad HE 100', 'Cantidad HE FC']
     color_range = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
-
 
     with tab1:
         if filtered_df.empty:
