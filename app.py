@@ -14,6 +14,7 @@ st.markdown("""
 /* --- GENERAL Y TIPOGRAFÍA --- */
 /* Se utiliza una fuente más moderna y se reduce el tamaño base. */
 .stApp {
+    background-color: #f0f2f6; /* <-- ESTA ES LA LÍNEA AGREGADA */
     font-size: 0.92rem;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: #333;
