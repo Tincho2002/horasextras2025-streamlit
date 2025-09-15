@@ -109,13 +109,13 @@ def generate_download_buttons(df_to_download, filename_prefix):
 
 @st.cache_data
 def load_and_clean_data(file_upload_obj):
-    # (El código de esta función no cambia)
     df_excel = pd.DataFrame()
     try:
-        df_excel = pd.read_excel(file_upload_obj, sheet_name='Datos', dtype={'Legajo': str, 'CECO': str, 'Nivel': str})
+        # Usamos el engine 'pyxlsb' para leer archivos .xlsb
+        df_excel = pd.read_excel(file_upload_obj, sheet_name='Datos', dtype={'Legajo': str, 'CECO': str, 'Nivel': str}, engine='pyxlsb')
     except Exception:
         try:
-            df_excel = pd.read_excel(file_upload_obj, dtype={'Legajo': str, 'CECO': str, 'Nivel': str})
+            df_excel = pd.read_excel(file_upload_obj, dtype={'Legajo': str, 'CECO': str, 'Nivel': str}, engine='pyxlsb')
         except Exception as e_no_sheet:
             st.error(f"ERROR CRÍTICO: No se pudo leer el archivo Excel. Mensaje: {e_no_sheet}")
             return pd.DataFrame()
@@ -153,7 +153,7 @@ def load_and_clean_data(file_upload_obj):
     return df_excel
 
 # --- INICIO DE LA APLICACIÓN ---
-uploaded_file = st.file_uploader("📂 Por favor, sube tu archivo Excel para comenzar", type="xlsx")
+uploaded_file = st.file_uploader("📂 Por favor, sube tu archivo Excel para comenzar", type=["xlsx", "xlsb"])
 
 if uploaded_file is not None:
     df = load_and_clean_data(uploaded_file)
@@ -162,13 +162,13 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-    # --- INICIO SECCIÓN DE FILTROS (LÓGICA DEFINITIVA) ---
+    # --- INICIO SECCIÓN DE FILTROS (LÓGICA EN CASCADA ROBUSTA) ---
     st.sidebar.header('Filtros del Dashboard')
     
     filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
 
     def get_sorted_unique_options(dataframe, column_name):
-        if column_name in dataframe.columns:
+        if column_name in dataframe.columns and not dataframe.empty:
             unique_values = dataframe[column_name].dropna().unique().tolist()
             if not unique_values: return []
             if column_name in ['Legajo', 'CECO']:
@@ -176,56 +176,46 @@ if uploaded_file is not None:
                 for val in unique_values:
                     try: numeric_vals.append(int(val))
                     except (ValueError, TypeError): non_numeric_vals.append(val)
-                return [str(x) for x in sorted(numeric_vals)] + sorted(non_numeric_vals)
+                return sorted(non_numeric_vals) + [str(x) for x in sorted(numeric_vals)]
             return sorted(unique_values)
         return []
 
-    # Inicializar estado la primera vez
+    # Inicializar estado la primera vez o si se limpia
     if 'filters' not in st.session_state:
-        st.session_state.filters = {col: get_sorted_unique_options(df, col) for col in filter_cols}
+        st.session_state.filters = {col: [] for col in filter_cols}
 
-    # Función para limpiar todos los filtros
     def clear_all_filters():
-        st.session_state.filters = {col: get_sorted_unique_options(df, col) for col in filter_cols}
+        st.session_state.filters = {col: [] for col in filter_cols}
 
-    # Botón para limpiar filtros
-    st.sidebar.button("🧹 Limpiar Todos los Filtros", on_click=clear_all_filters)
+    st.sidebar.button("🧹 Limpiar Todos los Filtros", on_click=clear_all_filters, use_container_width=True)
     st.sidebar.markdown("---")
 
-
-    # Lógica de renderizado y actualización de filtros
-    df_filtered = df.copy()
+    # Lógica de renderizado y actualización de filtros en cascada
+    df_filtered_step_by_step = df.copy()
     
-    # 1. Aplicar todos los filtros al dataframe de una sola vez
     for col in filter_cols:
-        if st.session_state.filters[col]:
-            df_filtered = df_filtered[df_filtered[col].isin(st.session_state.filters[col])]
-
-    # 2. Renderizar los widgets, calculando las opciones de cada uno en base al estado de los demás
-    for col in filter_cols:
-        # Para calcular las opciones de este filtro, partimos del DF original...
-        df_options_scope = df.copy()
-        # ...y lo filtramos con las selecciones de TODOS los OTROS filtros.
-        for other_col in filter_cols:
-            if other_col != col and st.session_state.filters[other_col]:
-                df_options_scope = df_options_scope[df_options_scope[other_col].isin(st.session_state.filters[other_col])]
+        options = get_sorted_unique_options(df_filtered_step_by_step, col)
         
-        # Obtenemos las opciones válidas
-        options_for_this_filter = get_sorted_unique_options(df_options_scope, col)
-
-        # La selección actual se mantiene
-        current_selection = st.session_state.filters[col]
-
-        # Renderizar el widget. Streamlit se encarga de manejar el estado con la 'key'.
-        st.session_state.filters[col] = st.sidebar.multiselect(
+        # Limpiar selecciones guardadas si ya no son válidas en el nuevo contexto
+        valid_selection = [s for s in st.session_state.filters.get(col, []) if s in options]
+        st.session_state.filters[col] = valid_selection
+        
+        selection = st.sidebar.multiselect(
             f'Selecciona {col}(s):',
-            options=options_for_this_filter,
-            default=current_selection,
-            key=f"multiselect_{col}" # La key es diferente a la del session_state para evitar conflictos
+            options,
+            key=f"multiselect_{col}",
+            default=st.session_state.filters[col]
         )
+        
+        # Actualizar la selección en el estado
+        st.session_state.filters[col] = selection
+        
+        # Aplicar el filtro de este paso para el siguiente filtro en la cascada
+        if selection:
+            df_filtered_step_by_step = df_filtered_step_by_step[df_filtered_step_by_step[col].isin(selection)]
 
-    # El dataframe filtrado para el resto de la app es el que se calculó al principio
-    filtered_df = df_filtered
+    # El dataframe final filtrado es el resultado del último paso de la cascada
+    filtered_df = df_filtered_step_by_step
     # --- FIN SECCIÓN DE FILTROS ---
     
     # (El resto del código de la app no cambia y continúa desde aquí)
@@ -244,11 +234,9 @@ if uploaded_file is not None:
     # --- PESTAÑAS (Sin cambios) ---
     tab1, tab2, tab3, tab_valor_hora, tab4 = st.tabs(["📈 Resumen y Tendencias", "🏢 Desglose Organizacional", "👤 Empleados Destacados", "⚖️ Valor Hora", "📋 Datos Brutos"])
     
-    # --- Paleta de Colores (Sin cambios) ---
     color_domain = ['Horas extras al 50 %', 'Horas extras al 50 % Sabados', 'Horas extras al 100%', 'Importe HE Fc', 'Cantidad HE 50', 'Cant HE al 50 Sabados', 'Cantidad HE 100', 'Cantidad HE FC']
     color_range = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
 
-    # (El código para el contenido de las pestañas no cambia)
     with tab1:
         if filtered_df.empty:
             st.warning("No hay datos para mostrar con los filtros seleccionados.")
