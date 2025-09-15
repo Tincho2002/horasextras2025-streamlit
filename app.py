@@ -191,52 +191,65 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-        # --- FILTROS INTERACTIVOS (LÓGICA INTERDEPENDIENTE TIPO EXCEL) ---
+    # --- INICIO SECCIÓN MODIFICADA ---
+    # --- FILTROS INTERACTIVOS (LÓGICA INTERDEPENDIENTE TIPO EXCEL) ---
     st.sidebar.header('Filtros del Dashboard')
-    
+
+    def get_sorted_unique_options(dataframe, column_name):
+        """Función auxiliar para obtener opciones únicas y ordenadas para los filtros."""
+        if column_name in dataframe.columns:
+            unique_values = dataframe[column_name].dropna().unique().tolist()
+            if not unique_values:
+                return []
+            if column_name in ['Legajo', 'CECO']:
+                numeric_vals, non_numeric_vals = [], []
+                for val in unique_values:
+                    try: 
+                        numeric_vals.append(int(val))
+                    except (ValueError, TypeError): 
+                        non_numeric_vals.append(val)
+                return [str(x) for x in sorted(numeric_vals)] + sorted(non_numeric_vals)
+            return sorted(unique_values)
+        return []
+
     filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
-    
+
     # Inicializar el estado de las selecciones si no existe
     if 'selections' not in st.session_state:
         st.session_state.selections = {col: [] for col in filter_cols}
-    
-    # Guardar una copia de las selecciones actuales para detectar cambios
-    previous_selections = st.session_state.selections.copy()
-    selections = {}
-    
+
+    # Guardar una copia de las selecciones actuales para determinar las opciones de los filtros
+    # Esto es clave para que los filtros sean interdependientes
+    active_selections_for_options = st.session_state.selections.copy()
+
     # Iterar sobre cada columna de filtro para crear su widget
     for col in filter_cols:
         # Crear un dataframe temporal que esté filtrado por TODAS las selecciones EXCEPTO la actual
         df_filtered_for_options = df.copy()
-        for other_col, selected_values in previous_selections.items():
+        for other_col, selected_values in active_selections_for_options.items():
             if other_col != col and selected_values:
                 df_filtered_for_options = df_filtered_for_options[df_filtered_for_options[other_col].isin(selected_values)]
-    
+
         # Obtener las opciones únicas y ordenadas del dataframe temporal
         options = get_sorted_unique_options(df_filtered_for_options, col)
         
         # Obtener la selección previa para este filtro, asegurándose de que los valores aún son válidos
-        previous_selection_for_col = [item for item in previous_selections.get(col, []) if item in options]
-    
-        # Crear el widget multiselect
-        selections[col] = st.sidebar.multiselect(
+        previous_selection_for_col = [item for item in active_selections_for_options.get(col, []) if item in options]
+
+        # Crear el widget multiselect y guardar la nueva selección
+        st.session_state.selections[col] = st.sidebar.multiselect(
             f'Selecciona {col}(s):',
             options,
             default=previous_selection_for_col,
             key=f"multiselect_{col}"
         )
-    
-    # Actualizar el session_state con las nuevas selecciones
-    st.session_state.selections = selections
-    
-    # Filtrar el dataframe principal con TODAS las selecciones activas
+
+    # Filtrar el dataframe principal con TODAS las selecciones activas para los gráficos y tablas
     filtered_df = df.copy()
     for col, selected_values in st.session_state.selections.items():
         if selected_values:
             filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
-    
-    # --- El resto del código continúa desde aquí ---
-    # (top_n_employees, selección de tipos de horas, etc.)
+    # --- FIN SECCIÓN MODIFICADA ---
 
 
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
@@ -254,12 +267,11 @@ if uploaded_file is not None:
     # --- PESTAÑAS ---
     tab1, tab2, tab3, tab_valor_hora, tab4 = st.tabs(["📈 Resumen y Tendencias", "🏢 Desglose Organizacional", "👤 Empleados Destacados", "⚖️ Valor Hora", "📋 Datos Brutos"])
     
-    # --- Paletas de Colores Consistentes ---
-    # Se definen paletas separadas para costos y cantidades para asegurar leyendas correctas
-    # y colores consistentes entre gráficos.
-    color_domain_cost = ['Horas extras al 50 %', 'Horas extras al 50 % Sabados', 'Horas extras al 100%', 'Importe HE Fc']
-    color_domain_quantity = ['Cantidad HE 50', 'Cant HE al 50 Sabados', 'Cantidad HE 100', 'Cantidad HE FC']
-    color_range_palette = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'] # Paleta base
+    # --- Paleta de Colores Consistente ---
+    # Se define una paleta de colores para que las categorías equivalentes tengan el mismo color
+    color_domain = ['Horas extras al 50 %', 'Horas extras al 50 % Sabados', 'Horas extras al 100%', 'Importe HE Fc', 'Cantidad HE 50', 'Cant HE al 50 Sabados', 'Cantidad HE 100', 'Cantidad HE FC']
+    color_range = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+
 
     with tab1:
         if filtered_df.empty:
@@ -280,10 +292,10 @@ if uploaded_file is not None:
                     bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(
                         x='Mes',
                         y=alt.Y('Costo ($):Q', stack='zero'),
-                        color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=color_domain_cost, range=color_range_palette))
+                        color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=color_domain, range=color_range))
                     )
                     line_costos = alt.Chart(monthly_trends_agg).mark_line(
-                        color='#4a4a4a', point=alt.OverlayMarkDef(filled=False, fill='white', color='#4a4a4a'), strokeWidth=2
+                        color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2
                     ).encode(
                         x='Mes',
                         y=alt.Y('Total_Costos:Q', title='Costo ($)'),
@@ -305,10 +317,10 @@ if uploaded_file is not None:
                     bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(
                         x='Mes',
                         y=alt.Y('Cantidad:Q', stack='zero'),
-                        color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=color_domain_quantity, range=color_range_palette))
+                        color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=color_domain, range=color_range))
                     )
                     line_cantidades = alt.Chart(monthly_trends_agg).mark_line(
-                        color='#4a4a4a', point=alt.OverlayMarkDef(filled=False, fill='white', color='#4a4a4a'), strokeWidth=2
+                        color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2
                     ).encode(
                         x='Mes',
                         y=alt.Y('Total_Cantidades:Q', title='Cantidad'),
@@ -508,4 +520,3 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados')
 else:
     st.info("⬆️ Esperando a que se suba un archivo Excel.")
-
