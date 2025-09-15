@@ -191,71 +191,52 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-    # --- FILTROS INTERACTIVOS (LÓgica EN CASCADA DEFINITIVA) ---
+        # --- FILTROS INTERACTIVOS (LÓGICA INTERDEPENDIENTE TIPO EXCEL) ---
     st.sidebar.header('Filtros del Dashboard')
-
-    def get_sorted_unique_options(dataframe, column_name):
-        """Función auxiliar para obtener opciones únicas y ordenadas para los filtros."""
-        if column_name in dataframe.columns:
-            unique_values = dataframe[column_name].dropna().unique().tolist()
-            if not unique_values:
-                return []
-            if column_name in ['Legajo', 'CECO']:
-                numeric_vals, non_numeric_vals = [], []
-                for val in unique_values:
-                    try: 
-                        numeric_vals.append(int(val))
-                    except (ValueError, TypeError): 
-                        non_numeric_vals.append(val)
-                return [str(x) for x in sorted(numeric_vals)] + sorted(non_numeric_vals)
-            return sorted(unique_values)
-        return []
-
-    filter_cols_cascade = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
-
-    if 'final_selections' not in st.session_state:
-        st.session_state.final_selections = {}
-
-    df_options_scope = df.copy()
-    new_selections = {}
-    parent_changed = False
-
-    for col in filter_cols_cascade:
-        options = get_sorted_unique_options(df_options_scope, col)
-        last_selection = st.session_state.final_selections.get(col, [])
-
-        # Determinar el valor por defecto
-        if parent_changed:
-            default_value = options
-        else:
-            default_value = [item for item in last_selection if item in options]
-            if not default_value and last_selection:
-                default_value = options
-            elif not last_selection:
-                default_value = options
-
-        selection = st.sidebar.multiselect(
+    
+    filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
+    
+    # Inicializar el estado de las selecciones si no existe
+    if 'selections' not in st.session_state:
+        st.session_state.selections = {col: [] for col in filter_cols}
+    
+    # Guardar una copia de las selecciones actuales para detectar cambios
+    previous_selections = st.session_state.selections.copy()
+    selections = {}
+    
+    # Iterar sobre cada columna de filtro para crear su widget
+    for col in filter_cols:
+        # Crear un dataframe temporal que esté filtrado por TODAS las selecciones EXCEPTO la actual
+        df_filtered_for_options = df.copy()
+        for other_col, selected_values in previous_selections.items():
+            if other_col != col and selected_values:
+                df_filtered_for_options = df_filtered_for_options[df_filtered_for_options[other_col].isin(selected_values)]
+    
+        # Obtener las opciones únicas y ordenadas del dataframe temporal
+        options = get_sorted_unique_options(df_filtered_for_options, col)
+        
+        # Obtener la selección previa para este filtro, asegurándose de que los valores aún son válidos
+        previous_selection_for_col = [item for item in previous_selections.get(col, []) if item in options]
+    
+        # Crear el widget multiselect
+        selections[col] = st.sidebar.multiselect(
             f'Selecciona {col}(s):',
             options,
-            default=default_value,
+            default=previous_selection_for_col,
             key=f"multiselect_{col}"
         )
-
-        # Si este filtro cambió, todos los filtros siguientes deben resetearse
-        if not parent_changed and set(selection) != set(last_selection):
-            parent_changed = True
-
-        new_selections[col] = selection
-
-        # Filtrar el dataframe que define las opciones para el siguiente filtro
-        if selection:
-            df_options_scope = df_options_scope[df_options_scope[col].isin(selection)]
-        else:
-            # Si un filtro se vacía, los hijos no tendrán opciones.
-            df_options_scope = df_options_scope[df_options_scope[col].isin([])]
     
-    st.session_state.final_selections = new_selections
-    filtered_df = df_options_scope
+    # Actualizar el session_state con las nuevas selecciones
+    st.session_state.selections = selections
+    
+    # Filtrar el dataframe principal con TODAS las selecciones activas
+    filtered_df = df.copy()
+    for col, selected_values in st.session_state.selections.items():
+        if selected_values:
+            filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
+    
+    # --- El resto del código continúa desde aquí ---
+    # (top_n_employees, selección de tipos de horas, etc.)
 
 
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
