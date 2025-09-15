@@ -162,7 +162,7 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-    # --- INICIO SECCIÓN MODIFICADA (LÓGICA CON CALLBACKS) ---
+    # --- INICIO SECCIÓN DE FILTROS (LÓGICA DEFINITIVA) ---
     st.sidebar.header('Filtros del Dashboard')
     
     filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
@@ -180,68 +180,53 @@ if uploaded_file is not None:
             return sorted(unique_values)
         return []
 
-    # Función de Callback: se ejecuta CADA VEZ que un filtro cambia.
-    def update_filters():
-        # Obtener el filtro que acaba de cambiar (el que disparó el callback)
-        changed_filter_key = st.session_state.last_changed_filter
-        
-        # Crear un dataframe filtrado con la selección ACTUAL de todos los filtros
-        temp_df = df.copy()
-        for col in filter_cols:
-            if st.session_state[f"filter_{col}"]:
-                temp_df = temp_df[temp_df[col].isin(st.session_state[f"filter_{col}"])]
-        
-        # Actualizar las selecciones de los otros filtros para que no queden "huérfanas"
-        for col in filter_cols:
-            # No actualizar el filtro que el usuario acaba de modificar
-            if col != changed_filter_key:
-                # Obtener las opciones válidas para este filtro, basado en las selecciones de los demás
-                df_options_scope = df.copy()
-                for other_col in filter_cols:
-                    if col != other_col and st.session_state[f"filter_{other_col}"]:
-                         df_options_scope = df_options_scope[df_options_scope[other_col].isin(st.session_state[f"filter_{other_col}"])]
-                
-                valid_options = get_sorted_unique_options(df_options_scope, col)
-                
-                # Dejar seleccionados solo los valores que siguen siendo válidos
-                current_selection = st.session_state[f"filter_{col}"]
-                new_selection = [item for item in current_selection if item in valid_options]
-                st.session_state[f"filter_{col}"] = new_selection
+    # Inicializar estado la primera vez
+    if 'filters' not in st.session_state:
+        st.session_state.filters = {col: get_sorted_unique_options(df, col) for col in filter_cols}
 
-    # Inicialización del estado de la sesión (solo la primera vez)
-    if 'initialized' not in st.session_state:
-        st.session_state.initialized = True
-        # Guardar las opciones completas para cada filtro
-        st.session_state.options = {col: get_sorted_unique_options(df, col) for col in filter_cols}
-        # Preseleccionar todas las opciones al inicio
-        for col in filter_cols:
-            st.session_state[f"filter_{col}"] = st.session_state.options[col]
-        st.session_state.last_changed_filter = None
+    # Función para limpiar todos los filtros
+    def clear_all_filters():
+        st.session_state.filters = {col: get_sorted_unique_options(df, col) for col in filter_cols}
 
-    # Renderizado de los filtros en la barra lateral
+    # Botón para limpiar filtros
+    st.sidebar.button("🧹 Limpiar Todos los Filtros", on_click=clear_all_filters)
+    st.sidebar.markdown("---")
+
+
+    # Lógica de renderizado y actualización de filtros
+    df_filtered = df.copy()
+    
+    # 1. Aplicar todos los filtros al dataframe de una sola vez
     for col in filter_cols:
-        # Calcular las opciones para el widget actual
-        df_options_scope = df.copy()
-        for other_col in filter_cols:
-            if col != other_col and st.session_state[f"filter_{other_col}"]:
-                df_options_scope = df_options_scope[df_options_scope[other_col].isin(st.session_state[f"filter_{other_col}"])]
-        
-        current_options = get_sorted_unique_options(df_options_scope, col)
+        if st.session_state.filters[col]:
+            df_filtered = df_filtered[df_filtered[col].isin(st.session_state.filters[col])]
 
-        st.sidebar.multiselect(
+    # 2. Renderizar los widgets, calculando las opciones de cada uno en base al estado de los demás
+    for col in filter_cols:
+        # Para calcular las opciones de este filtro, partimos del DF original...
+        df_options_scope = df.copy()
+        # ...y lo filtramos con las selecciones de TODOS los OTROS filtros.
+        for other_col in filter_cols:
+            if other_col != col and st.session_state.filters[other_col]:
+                df_options_scope = df_options_scope[df_options_scope[other_col].isin(st.session_state.filters[other_col])]
+        
+        # Obtenemos las opciones válidas
+        options_for_this_filter = get_sorted_unique_options(df_options_scope, col)
+
+        # La selección actual se mantiene
+        current_selection = st.session_state.filters[col]
+
+        # Renderizar el widget. Streamlit se encarga de manejar el estado con la 'key'.
+        st.session_state.filters[col] = st.sidebar.multiselect(
             f'Selecciona {col}(s):',
-            options=current_options,
-            key=f"filter_{col}",
-            # En el 'on_change', guardamos cuál fue el último filtro modificado y llamamos al callback
-            on_change=lambda col_name=col: setattr(st.session_state, 'last_changed_filter', col_name) or update_filters()
+            options=options_for_this_filter,
+            default=current_selection,
+            key=f"multiselect_{col}" # La key es diferente a la del session_state para evitar conflictos
         )
 
-    # Filtrar el dataframe principal para los gráficos y tablas
-    filtered_df = df.copy()
-    for col in filter_cols:
-        if st.session_state[f"filter_{col}"]:
-            filtered_df = filtered_df[filtered_df[col].isin(st.session_state[f"filter_{col}"])]
-    # --- FIN SECCIÓN MODIFICADA ---
+    # El dataframe filtrado para el resto de la app es el que se calculó al principio
+    filtered_df = df_filtered
+    # --- FIN SECCIÓN DE FILTROS ---
     
     # (El resto del código de la app no cambia y continúa desde aquí)
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
