@@ -337,30 +337,42 @@ if uploaded_file is not None:
             with st.container(border=True):
                 with st.spinner("Generando análisis de tendencias..."):
                     monthly_trends_agg = calculate_monthly_trends(filtered_df, cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
+                    
+                    # --- AÑADIR FILA DE TOTALES ---
+                    if not monthly_trends_agg.empty:
+                        total_row = monthly_trends_agg.sum(numeric_only=True).to_frame().T
+                        total_row['Mes'] = 'TOTAL'
+                        monthly_trends_agg_with_total = pd.concat([monthly_trends_agg, total_row], ignore_index=True)
+                    else:
+                        monthly_trends_agg_with_total = monthly_trends_agg
+                    # ---------------------------------
+    
                     st.header('Tendencias Mensuales de Horas Extras')
                     col1, col2 = st.columns(2)
                     with col1:
+                        chart_data = monthly_trends_agg # Usar datos sin total para gráficos
                         cost_bars_vars = [cost_columns_options[k] for k in selected_cost_types_display]
-                        monthly_trends_costos_melted_bars = monthly_trends_agg.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
+                        monthly_trends_costos_melted_bars = chart_data.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
                         bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero'), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=color_domain, range=color_range)))
-                        line_costos = alt.Chart(monthly_trends_agg).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)'), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format=',.2f')])
+                        line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)'), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format=',.2f')])
                         chart_costos_mensual = alt.layer(bars_costos, line_costos).resolve_scale(y='shared').properties(title=alt.TitleParams('Costos Mensuales', anchor='middle')).interactive()
                         st.altair_chart(chart_costos_mensual, use_container_width=True)
                     with col2:
+                        chart_data = monthly_trends_agg # Usar datos sin total para gráficos
                         quantity_bars_vars = [quantity_columns_options[k] for k in selected_quantity_types_display]
-                        monthly_trends_cantidades_melted_bars = monthly_trends_agg.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
+                        monthly_trends_cantidades_melted_bars = chart_data.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
                         bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Cantidad:Q', stack='zero'), color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=color_domain, range=color_range)))
-                        line_cantidades = alt.Chart(monthly_trends_agg).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Cantidades:Q', title='Cantidad'), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')])
+                        line_cantidades = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Cantidades:Q', title='Cantidad'), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')])
                         chart_cantidades_mensual = alt.layer(bars_cantidades, line_cantidades).resolve_scale(y='shared').properties(title=alt.TitleParams('Cantidades Mensuales', anchor='middle')).interactive()
                         st.altair_chart(chart_cantidades_mensual, use_container_width=True)
                     
                     st.subheader('Tabla de Tendencias Mensuales')
-                    st.dataframe(format_st_dataframe(monthly_trends_agg), use_container_width=True)
-                    generate_download_buttons(monthly_trends_agg, 'tendencias_mensuales')
+                    st.dataframe(format_st_dataframe(monthly_trends_agg_with_total), use_container_width=True)
+                    generate_download_buttons(monthly_trends_agg_with_total, 'tendencias_mensuales')
 
             with st.container(border=True):
                 with st.spinner("Calculando variaciones mensuales..."):
-                    monthly_trends_for_var = calculate_monthly_variations(monthly_trends_agg)
+                    monthly_trends_for_var = calculate_monthly_variations(monthly_trends_agg) # Usar datos sin total
                     st.header('Análisis de Variaciones Mensuales')
                     col1, col2 = st.columns(2)
                     with col1:
@@ -374,13 +386,21 @@ if uploaded_file is not None:
                     df_variaciones = monthly_trends_for_var[['Mes', 'Total_Costos', 'Variacion_Costos_Abs', 'Variacion_Costos_Pct', 'Total_Cantidades', 'Variacion_Cantidades_Abs', 'Variacion_Cantidades_Pct']]
                     st.dataframe(format_st_dataframe(df_variaciones), use_container_width=True)
                     generate_download_buttons(monthly_trends_for_var, 'variaciones_mensuales')
-
+    
     with tab2:
         if filtered_df.empty: st.warning("No hay datos para mostrar.")
         else:
             with st.spinner("Generando desgloses organizacionales..."):
+                # Gerencia y Ministerio
                 with st.container(border=True):
                     df_grouped_gm = calculate_grouped_aggregation(filtered_df, ['Gerencia', 'Ministerio'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
+                    if not df_grouped_gm.empty:
+                        total_gm = df_grouped_gm.sum(numeric_only=True).to_frame().T
+                        total_gm['Gerencia'] = 'TOTAL'
+                        total_gm['Ministerio'] = ''
+                        df_grouped_gm_with_total = pd.concat([df_grouped_gm, total_gm], ignore_index=True)
+                    else:
+                        df_grouped_gm_with_total = df_grouped_gm
                     st.header('Distribución por Gerencia y Ministerio')
                     col1, col2 = st.columns(2)
                     with col1:
@@ -390,11 +410,19 @@ if uploaded_file is not None:
                         chart_cantidades_gm = alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Gerencia:N', sort='-x'), color=alt.Color('Ministerio', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300))).properties(title=alt.TitleParams('Cantidades por Gerencia y Ministerio', anchor='middle'))
                         st.altair_chart(chart_cantidades_gm, use_container_width=True)
                     st.subheader('Tabla de Distribución')
-                    st.dataframe(format_st_dataframe(df_grouped_gm), use_container_width=True)
-                    generate_download_buttons(df_grouped_gm, 'distribucion_gerencia_ministerio')
+                    st.dataframe(format_st_dataframe(df_grouped_gm_with_total), use_container_width=True)
+                    generate_download_buttons(df_grouped_gm_with_total, 'distribucion_gerencia_ministerio')
 
+                # Gerencia y Sexo
                 with st.container(border=True):
                     df_grouped_gs = calculate_grouped_aggregation(filtered_df, ['Gerencia', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
+                    if not df_grouped_gs.empty:
+                        total_gs = df_grouped_gs.sum(numeric_only=True).to_frame().T
+                        total_gs['Gerencia'] = 'TOTAL'
+                        total_gs['Sexo'] = ''
+                        df_grouped_gs_with_total = pd.concat([df_grouped_gs, total_gs], ignore_index=True)
+                    else:
+                        df_grouped_gs_with_total = df_grouped_gs
                     st.header('Distribución por Gerencia y Sexo')
                     col1, col2 = st.columns(2)
                     with col1:
@@ -404,11 +432,19 @@ if uploaded_file is not None:
                         chart_cantidades_gs = alt.Chart(df_grouped_gs).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Gerencia:N', sort='-x'), color=alt.Color('Sexo', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300))).properties(title=alt.TitleParams('Cantidades por Gerencia y Sexo', anchor='middle')).interactive()
                         st.altair_chart(chart_cantidades_gs, use_container_width=True)
                     st.subheader('Tabla de Distribución')
-                    st.dataframe(format_st_dataframe(df_grouped_gs), use_container_width=True)
-                    generate_download_buttons(df_grouped_gs, 'distribucion_gerencia_sexo')
+                    st.dataframe(format_st_dataframe(df_grouped_gs_with_total), use_container_width=True)
+                    generate_download_buttons(df_grouped_gs_with_total, 'distribucion_gerencia_sexo')
 
+                # Ministerio y Sexo
                 with st.container(border=True):
                     df_grouped_ms = calculate_grouped_aggregation(filtered_df, ['Ministerio', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
+                    if not df_grouped_ms.empty:
+                        total_ms = df_grouped_ms.sum(numeric_only=True).to_frame().T
+                        total_ms['Ministerio'] = 'TOTAL'
+                        total_ms['Sexo'] = ''
+                        df_grouped_ms_with_total = pd.concat([df_grouped_ms, total_ms], ignore_index=True)
+                    else:
+                        df_grouped_ms_with_total = df_grouped_ms
                     st.header('Distribución por Ministerio y Sexo')
                     col1, col2 = st.columns(2)
                     with col1:
@@ -418,11 +454,19 @@ if uploaded_file is not None:
                         chart_cantidades_ms = alt.Chart(df_grouped_ms).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Ministerio:N', sort='-x'), color=alt.Color('Sexo', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300))).properties(title=alt.TitleParams('Cantidades por Ministerio y Sexo', anchor='middle')).interactive()
                         st.altair_chart(chart_cantidades_ms, use_container_width=True)
                     st.subheader('Tabla de Distribución')
-                    st.dataframe(format_st_dataframe(df_grouped_ms), use_container_width=True)
-                    generate_download_buttons(df_grouped_ms, 'distribucion_ministerio_sexo')
+                    st.dataframe(format_st_dataframe(df_grouped_ms_with_total), use_container_width=True)
+                    generate_download_buttons(df_grouped_ms_with_total, 'distribucion_ministerio_sexo')
 
+                # Nivel y Sexo
                 with st.container(border=True):
                     df_grouped_ns = calculate_grouped_aggregation(filtered_df, ['Nivel', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
+                    if not df_grouped_ns.empty:
+                        total_ns = df_grouped_ns.sum(numeric_only=True).to_frame().T
+                        total_ns['Nivel'] = 'TOTAL'
+                        total_ns['Sexo'] = ''
+                        df_grouped_ns_with_total = pd.concat([df_grouped_ns, total_ns], ignore_index=True)
+                    else:
+                        df_grouped_ns_with_total = df_grouped_ns
                     st.header('Distribución por Nivel y Sexo')
                     col1, col2 = st.columns(2)
                     with col1:
@@ -432,11 +476,19 @@ if uploaded_file is not None:
                         chart_cantidades_ns = alt.Chart(df_grouped_ns).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Nivel:N', sort='-x'), color=alt.Color('Sexo', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300))).properties(title=alt.TitleParams('Cantidades por Nivel y Sexo', anchor='middle')).interactive()
                         st.altair_chart(chart_cantidades_ns, use_container_width=True)
                     st.subheader('Tabla de Distribución')
-                    st.dataframe(format_st_dataframe(df_grouped_ns), use_container_width=True)
-                    generate_download_buttons(df_grouped_ns, 'distribucion_nivel_sexo')
+                    st.dataframe(format_st_dataframe(df_grouped_ns_with_total), use_container_width=True)
+                    generate_download_buttons(df_grouped_ns_with_total, 'distribucion_nivel_sexo')
 
+                # Función y Sexo
                 with st.container(border=True):
                     df_grouped_fs = calculate_grouped_aggregation(filtered_df, ['Función', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
+                    if not df_grouped_fs.empty:
+                        total_fs = df_grouped_fs.sum(numeric_only=True).to_frame().T
+                        total_fs['Función'] = 'TOTAL'
+                        total_fs['Sexo'] = ''
+                        df_grouped_fs_with_total = pd.concat([df_grouped_fs, total_fs], ignore_index=True)
+                    else:
+                        df_grouped_fs_with_total = df_grouped_fs
                     st.header('Distribución por Función y Sexo')
                     col1, col2 = st.columns(2)
                     with col1:
@@ -446,8 +498,8 @@ if uploaded_file is not None:
                         chart_cantidades_fs = alt.Chart(df_grouped_fs).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Función:N', sort='-x'), color=alt.Color('Sexo', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300))).properties(title=alt.TitleParams('Cantidades por Función y Sexo', anchor='middle')).interactive()
                         st.altair_chart(chart_cantidades_fs, use_container_width=True)
                     st.subheader('Tabla de Distribución')
-                    st.dataframe(format_st_dataframe(df_grouped_fs), use_container_width=True)
-                    generate_download_buttons(df_grouped_fs, 'distribucion_funcion_sexo')
+                    st.dataframe(format_st_dataframe(df_grouped_fs_with_total), use_container_width=True)
+                    generate_download_buttons(df_grouped_fs_with_total, 'distribucion_funcion_sexo')
 
     with tab3:
         if filtered_df.empty:
