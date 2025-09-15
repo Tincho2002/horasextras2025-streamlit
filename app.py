@@ -12,9 +12,8 @@ st.set_page_config(layout="wide")
 st.markdown("""
 <style>
 /* --- GENERAL Y TIPOGRAFÍA --- */
-/* Se utiliza una fuente más moderna y se reduce el tamaño base. */
 .stApp {
-    background-color: #f0f2f6; /* <-- ESTA ES LA LÍNEA AGREGADA */
+    background-color: #f0f2f6; 
     font-size: 0.92rem;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: #333;
@@ -30,8 +29,6 @@ h2 { font-size: 1.6rem; color: #4a4a4a;}
 h3 { font-size: 1.3rem; color: #5a5a5a;}
 
 /* --- LAYOUT Y CONTENEDORES (FLEXBOX RESPONSIVE) --- */
-/* SOLUCIÓN FINAL: Se asegura que el contenedor de las columnas permita el salto de línea (wrap)
-   y que cada columna ocupe el 100% del ancho en pantallas pequeñas. */
 @media (max-width: 768px) {
     div[data-testid="stHorizontalBlock"] {
         flex-wrap: wrap !important;
@@ -44,12 +41,12 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
 
 
 /* --- VISUALIZACIÓN DE TABLAS ELABORADA --- */
-/* Estilos para hacer las tablas más legibles y modernas */
 .stDataFrame {
     width: 100%;
     border: none;
     border-radius: 8px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    background-color: #ffffff; /* Asegura que la tabla sea blanca */
 }
 .stDataFrame thead th {
     background-color: #6C5CE7;
@@ -71,14 +68,12 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
     text-align: right; /* Alineación de números a la derecha */
     border-bottom: 1px solid #e0e0e0;
 }
-/* La primera columna (generalmente texto) se alinea a la izquierda */
 .stDataFrame tbody td:first-child {
     text-align: left;
     font-weight: 500;
 }
 
 /* --- BOTONES DE DESCARGA --- */
-/* Se corrige el selector para ser más específico y se restauran los colores */
 div[data-testid="stDownloadButton"] button {
     background-color: #6C5CE7;
     color: white;
@@ -97,7 +92,6 @@ div[data-testid="stDownloadButton"] button:hover {
 }
 
 /* --- OTROS ELEMENTOS --- */
-/* Mejora visual de las pestañas */
 .stTabs [data-basweb="tab"] {
     border-radius: 6px 6px 0 0;
     padding: 10px 20px;
@@ -107,6 +101,13 @@ div[data-testid="stDownloadButton"] button:hover {
     background-color: #f8f7fc;
     border-bottom: 3px solid #6C5CE7;
 }
+
+/* --- ESTILO DE LA BARRA LATERAL (SIDEBAR) --- */
+/* V-- ESTA ES LA SECCIÓN AGREGADA --V  */
+[data-testid="stSidebar"] {
+    background-color: #ffffff;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
