@@ -8,7 +8,7 @@ import io
 st.set_page_config(layout="wide")
 
 # --- CSS Personalizado para un Estilo Profesional ---
-# Se ha rediseñado completamente el CSS para mejorar la estética general.
+# (Tu CSS original se mantiene intacto)
 st.markdown("""
 <style>
 /* --- GENERAL Y TIPOGRAFÍA --- */
@@ -113,7 +113,7 @@ div[data-testid="stDownloadButton"] button:hover {
 st.title('📊 Dashboard de Horas Extras HE_2025')
 st.subheader('Análisis Interactivo de Costos y Cantidades de Horas Extras')
 
-# --- Funciones Auxiliares (sin cambios en la lógica) ---
+# --- Funciones Auxiliares (de tu código original) ---
 def format_st_dataframe(df_to_style):
     numeric_cols = df_to_style.select_dtypes(include='number').columns
     format_dict = {col: '{:,.2f}' for col in numeric_cols}
@@ -121,14 +121,13 @@ def format_st_dataframe(df_to_style):
 
 def generate_download_buttons(df_to_download, filename_prefix):
     st.markdown("<h6>Opciones de Descarga:</h6>", unsafe_allow_html=True)
-    col_dl1, col_dl2, _ = st.columns([1,1,2]) # Se añade una columna vacía para espaciar
+    col_dl1, col_dl2, _ = st.columns([1,1,2])
     csv_buffer = io.StringIO()
     df_to_download.to_csv(csv_buffer, index=False)
     with col_dl1:
         st.download_button(label="⬇️ Descargar CSV", data=csv_buffer.getvalue(), file_name=f"{filename_prefix}.csv", mime="text/csv", key=f"csv_download_{filename_prefix}")
     excel_buffer = io.BytesIO()
     df_to_download.to_excel(excel_buffer, index=False, engine='openpyxl')
-    excel_buffer.seek(0)
     with col_dl2:
         st.download_button(label="📊 Descargar Excel", data=excel_buffer.getvalue(), file_name=f"{filename_prefix}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"excel_download_{filename_prefix}")
 
@@ -191,7 +190,7 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-    # --- SECCIÓN DE FILTROS REEMPLAZADA POR LÓGICA EN CASCADA ROBUSTA ---
+    # --- INICIO DE LA SECCIÓN DE FILTROS MODIFICADA ---
     st.sidebar.header('Filtros del Dashboard')
 
     filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
@@ -200,17 +199,15 @@ if uploaded_file is not None:
         if column_name in dataframe.columns and not dataframe.empty:
             unique_values = dataframe[column_name].dropna().unique().tolist()
             if not unique_values: return []
-            if column_name in ['Legajo', 'CECO']:
-                numeric_vals, non_numeric_vals = [], []
-                for val in unique_values:
-                    try: numeric_vals.append(int(val))
-                    except (ValueError, TypeError): non_numeric_vals.append(val)
-                # Ordena los no numéricos primero, luego los numéricos
-                return sorted(non_numeric_vals) + [str(x) for x in sorted(numeric_vals)]
-            return sorted(unique_values)
+            try:
+                # Intenta una ordenación inteligente (números como números, texto como texto)
+                return sorted(unique_values, key=lambda x: (isinstance(x, (int, float)), x))
+            except TypeError:
+                # Si falla (mezcla de tipos), convierte todo a string y ordena
+                return sorted(map(str, unique_values))
         return []
 
-    # Inicializar el estado de los filtros si no existe
+    # Inicializar el estado de la sesión si es la primera vez que se ejecuta
     if 'selections' not in st.session_state:
         st.session_state.selections = {col: [] for col in filter_cols}
 
@@ -220,38 +217,40 @@ if uploaded_file is not None:
 
     st.sidebar.button("🧹 Limpiar Todos los Filtros", on_click=clear_all_filters, use_container_width=True)
     st.sidebar.markdown("---")
+    
+    # Este dataframe se irá reduciendo en cada paso para generar las opciones del siguiente filtro
+    df_filtered_for_options = df.copy()
+    
+    # Este diccionario guardará las selecciones del usuario en esta ejecución
+    current_selections = {}
 
-    # Crear una copia del DF que se irá filtrando en cada paso
-    df_filtered_step_by_step = df.copy()
-
-    # Iterar a través de las columnas de filtro en orden
     for col in filter_cols:
-        # Las opciones para el filtro actual se basan en el DF ya filtrado por los pasos anteriores
-        options = get_sorted_unique_options(df_filtered_step_by_step, col)
+        options = get_sorted_unique_options(df_filtered_for_options, col)
         
-        # El valor por defecto es lo que esté guardado en el estado de la sesión
+        # El valor por defecto es la selección guardada de la ejecución anterior
         default_selection = st.session_state.selections.get(col, [])
-        
-        # Asegurarse de que el valor por defecto sigue siendo válido en las opciones disponibles actualmente
+        # Asegurarse de que el valor por defecto sigue siendo válido
         valid_default = [item for item in default_selection if item in options]
         
-        # Renderizar el widget de selección múltiple
         selection = st.sidebar.multiselect(
             f'Selecciona {col}(s):',
             options,
             default=valid_default,
-            key=f"multiselect_{col}" # Usar una key única para cada widget
+            key=f"multiselect_{col}"
         )
         
-        # Actualizar el estado de la sesión con la selección del usuario para este filtro
-        st.session_state.selections[col] = selection
+        # Guardar la selección actual
+        current_selections[col] = selection
         
-        # Aplicar el filtro de este paso al DF para el siguiente filtro en la cascada
+        # Aplicar el filtro de este paso para el siguiente filtro en la cascada
         if selection:
-            df_filtered_step_by_step = df_filtered_step_by_step[df_filtered_step_by_step[col].isin(selection)]
+            df_filtered_for_options = df_filtered_for_options[df_filtered_for_options[col].isin(selection)]
 
-    # El dataframe final que se usará en los gráficos y tablas es el resultado del último paso
-    filtered_df = df_filtered_step_by_step
+    # Actualizar el estado de la sesión con las selecciones de esta ejecución
+    st.session_state.selections = current_selections
+    
+    # El dataframe final para los gráficos es el resultado del último filtro aplicado
+    filtered_df = df_filtered_for_options
     # --- FIN DE LA SECCIÓN DE FILTROS ---
 
 
@@ -267,10 +266,9 @@ if uploaded_file is not None:
 
     st.info(f"Mostrando **{len(filtered_df)}** registros según los filtros aplicados.")
 
-    # --- PESTAÑAS ---
+    # --- PESTAÑAS (de tu código original) ---
     tab1, tab2, tab3, tab_valor_hora, tab4 = st.tabs(["📈 Resumen y Tendencias", "🏢 Desglose Organizacional", "👤 Empleados Destacados", "⚖️ Valor Hora", "📋 Datos Brutos"])
     
-    # --- Paleta de Colores Consistente ---
     color_domain = ['Horas extras al 50 %', 'Horas extras al 50 % Sabados', 'Horas extras al 100%', 'Importe HE Fc', 'Cantidad HE 50', 'Cant HE al 50 Sabados', 'Cantidad HE 100', 'Cantidad HE FC']
     color_range = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
 
@@ -287,7 +285,6 @@ if uploaded_file is not None:
             col1, col2 = st.columns(2)
             with col1:
                 with st.container(border=True):
-                    # --- Gráfico de Costos (Combinado) ---
                     cost_bars_vars = [col for col in selected_cost_types_internal if col in monthly_trends_agg.columns]
                     monthly_trends_costos_melted_bars = monthly_trends_agg.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
 
@@ -312,7 +309,6 @@ if uploaded_file is not None:
 
             with col2:
                 with st.container(border=True):
-                    # --- Gráfico de Cantidades (Combinado) ---
                     quantity_bars_vars = [col for col in selected_quantity_types_internal if col in monthly_trends_agg.columns]
                     monthly_trends_cantidades_melted_bars = monthly_trends_agg.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
                     
@@ -514,6 +510,7 @@ if uploaded_file is not None:
                     generate_download_buttons(df_valor_hora, f'valores_promedio_hora_por_{grouping_dimension}')
                 else:
                     st.warning("Columnas de valor por hora no encontradas.")
+
     with tab4:
         with st.container(border=True):
             st.header('Tabla de Datos Brutos Filtrados')
