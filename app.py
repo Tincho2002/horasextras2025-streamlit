@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import io
+import time # Importado para la demostración del spinner
 
 # --- Configuración de la página ---
 st.set_page_config(layout="wide")
@@ -335,22 +336,21 @@ if uploaded_file is not None:
             st.warning("No hay datos para mostrar con los filtros seleccionados.")
         else:
             with st.container(border=True):
-                with st.spinner("Generando análisis de tendencias..."):
+                with st.spinner("Generando análisis de tendencias... (pausa de 3 seg. para demostración)"):
+                    time.sleep(3) # <--- PAUSA ARTIFICIAL DE 3 SEGUNDOS
                     monthly_trends_agg = calculate_monthly_trends(filtered_df, cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
                     
-                    # --- AÑADIR FILA DE TOTALES ---
                     if not monthly_trends_agg.empty:
                         total_row = monthly_trends_agg.sum(numeric_only=True).to_frame().T
                         total_row['Mes'] = 'TOTAL'
                         monthly_trends_agg_with_total = pd.concat([monthly_trends_agg, total_row], ignore_index=True)
                     else:
                         monthly_trends_agg_with_total = monthly_trends_agg
-                    # ---------------------------------
     
                     st.header('Tendencias Mensuales de Horas Extras')
                     col1, col2 = st.columns(2)
                     with col1:
-                        chart_data = monthly_trends_agg # Usar datos sin total para gráficos
+                        chart_data = monthly_trends_agg
                         cost_bars_vars = [cost_columns_options[k] for k in selected_cost_types_display]
                         monthly_trends_costos_melted_bars = chart_data.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
                         bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero'), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=color_domain, range=color_range)))
@@ -358,7 +358,7 @@ if uploaded_file is not None:
                         chart_costos_mensual = alt.layer(bars_costos, line_costos).resolve_scale(y='shared').properties(title=alt.TitleParams('Costos Mensuales', anchor='middle')).interactive()
                         st.altair_chart(chart_costos_mensual, use_container_width=True)
                     with col2:
-                        chart_data = monthly_trends_agg # Usar datos sin total para gráficos
+                        chart_data = monthly_trends_agg
                         quantity_bars_vars = [quantity_columns_options[k] for k in selected_quantity_types_display]
                         monthly_trends_cantidades_melted_bars = chart_data.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
                         bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Cantidad:Q', stack='zero'), color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=color_domain, range=color_range)))
@@ -372,7 +372,7 @@ if uploaded_file is not None:
 
             with st.container(border=True):
                 with st.spinner("Calculando variaciones mensuales..."):
-                    monthly_trends_for_var = calculate_monthly_variations(monthly_trends_agg) # Usar datos sin total
+                    monthly_trends_for_var = calculate_monthly_variations(monthly_trends_agg)
                     st.header('Análisis de Variaciones Mensuales')
                     col1, col2 = st.columns(2)
                     with col1:
@@ -391,7 +391,6 @@ if uploaded_file is not None:
         if filtered_df.empty: st.warning("No hay datos para mostrar.")
         else:
             with st.spinner("Generando desgloses organizacionales..."):
-                # Gerencia y Ministerio
                 with st.container(border=True):
                     df_grouped_gm = calculate_grouped_aggregation(filtered_df, ['Gerencia', 'Ministerio'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
                     if not df_grouped_gm.empty:
@@ -413,7 +412,6 @@ if uploaded_file is not None:
                     st.dataframe(format_st_dataframe(df_grouped_gm_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_gm_with_total, 'distribucion_gerencia_ministerio')
 
-                # Gerencia y Sexo
                 with st.container(border=True):
                     df_grouped_gs = calculate_grouped_aggregation(filtered_df, ['Gerencia', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
                     if not df_grouped_gs.empty:
@@ -435,7 +433,6 @@ if uploaded_file is not None:
                     st.dataframe(format_st_dataframe(df_grouped_gs_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_gs_with_total, 'distribucion_gerencia_sexo')
 
-                # Ministerio y Sexo
                 with st.container(border=True):
                     df_grouped_ms = calculate_grouped_aggregation(filtered_df, ['Ministerio', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
                     if not df_grouped_ms.empty:
@@ -457,7 +454,6 @@ if uploaded_file is not None:
                     st.dataframe(format_st_dataframe(df_grouped_ms_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_ms_with_total, 'distribucion_ministerio_sexo')
 
-                # Nivel y Sexo
                 with st.container(border=True):
                     df_grouped_ns = calculate_grouped_aggregation(filtered_df, ['Nivel', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
                     if not df_grouped_ns.empty:
@@ -479,7 +475,6 @@ if uploaded_file is not None:
                     st.dataframe(format_st_dataframe(df_grouped_ns_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_ns_with_total, 'distribucion_nivel_sexo')
 
-                # Función y Sexo
                 with st.container(border=True):
                     df_grouped_fs = calculate_grouped_aggregation(filtered_df, ['Función', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
                     if not df_grouped_fs.empty:
