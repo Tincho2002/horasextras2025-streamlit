@@ -195,7 +195,7 @@ if uploaded_file is not None:
     st.sidebar.header('Filtros del Dashboard')
 
     def get_sorted_unique_options(dataframe, column_name):
-        """Función auxiliar para obtener opciones únicas y ordenadas para los filtros."""
+        """Opciones únicas y ordenadas."""
         if column_name in dataframe.columns:
             unique_values = dataframe[column_name].dropna().unique().tolist()
             if not unique_values:
@@ -203,60 +203,44 @@ if uploaded_file is not None:
             if column_name in ['Legajo', 'CECO']:
                 numeric_vals, non_numeric_vals = [], []
                 for val in unique_values:
-                    try: 
+                    try:
                         numeric_vals.append(int(val))
-                    except (ValueError, TypeError): 
+                    except (ValueError, TypeError):
                         non_numeric_vals.append(val)
                 return [str(x) for x in sorted(numeric_vals)] + sorted(non_numeric_vals)
             return sorted(unique_values)
         return []
-
+    
     filter_cols_cascade = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
-
+    
     if 'final_selections' not in st.session_state:
         st.session_state.final_selections = {}
-
-    df_options_scope = df.copy()
-    new_selections = {}
-    parent_changed = False
-
+    
+    df_filtered = df.copy()
+    
     for col in filter_cols_cascade:
-        options = get_sorted_unique_options(df_options_scope, col)
-        last_selection = st.session_state.final_selections.get(col, [])
-
-        # Determinar el valor por defecto
-        if parent_changed:
-            default_value = options
-        else:
-            default_value = [item for item in last_selection if item in options]
-            if not default_value and last_selection:
-                default_value = options
-            elif not last_selection:
-                default_value = options
-
+        options = get_sorted_unique_options(df_filtered, col)
+        last_selection = st.session_state.final_selections.get(col, options)
+    
         selection = st.sidebar.multiselect(
             f'Selecciona {col}(s):',
             options,
-            default=default_value,
+            default=last_selection,
             key=f"multiselect_{col}"
         )
-
-        # Si este filtro cambió, todos los filtros siguientes deben resetearse
-        if not parent_changed and set(selection) != set(last_selection):
-            parent_changed = True
-
-        new_selections[col] = selection
-
-        # Filtrar el dataframe que define las opciones para el siguiente filtro
-        if selection:
-            df_options_scope = df_options_scope[df_options_scope[col].isin(selection)]
-        else:
-            # Si un filtro se vacía, los hijos no tendrán opciones.
-            df_options_scope = df_options_scope[df_options_scope[col].isin([])]
     
-    st.session_state.final_selections = new_selections
-    filtered_df = df_options_scope
-
+        # Guardar selección
+        st.session_state.final_selections[col] = selection
+    
+        # Filtrar SOLO si hay algo seleccionado
+        if selection:
+            df_filtered = df_filtered[df_filtered[col].isin(selection)]
+    
+    # DataFrame final filtrado
+    filtered_df = df_filtered
+    
+    st.write("Datos filtrados:")
+    st.dataframe(filtered_df)
 
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
     st.sidebar.markdown("---")
