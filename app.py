@@ -18,17 +18,21 @@ st.markdown("""
     --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-body {
-    background-color: var(--background-color);
-    color: var(--text-color);
+/* Forzar un fondo claro y color de texto oscuro para evitar el modo oscuro del sistema */
+body, .stApp {
+    background-color: var(--background-color) !important;
+    color: var(--text-color) !important;
 }
 
 /* --- GENERAL Y TIPOGRAFÍA --- */
 .stApp {
-    background-color: var(--background-color); 
     font-size: 0.92rem;
     font-family: var(--font);
-    color: #333;
+}
+
+/* Forzar color de texto oscuro en elementos genéricos que Streamlit pueda cambiar */
+p, div, span, label, li, h1, h2, h3, h4, h5, h6 {
+    color: var(--text-color);
 }
 
 /* --- COLORES BASE DEL TEMA --- */
@@ -39,10 +43,6 @@ body {
 }
 
 /* Estilo consistente para títulos y subtítulos */
-h1, h2, h3 {
-    font-weight: 600;
-    color: #1a1a2e;
-}
 h1 { font-size: 2.2rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-bottom: 20px;}
 h2 { font-size: 1.6rem; color: #4a4a4a;}
 h3 { font-size: 1.3rem; color: #5a5a5a;}
@@ -67,7 +67,7 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
 }
 .stDataFrame thead th {
     background-color: var(--primary-color);
-    color: white;
+    color: white; /* El texto aquí sí debe ser blanco */
     font-weight: bold;
     text-align: left;
     padding: 14px 16px;
@@ -84,6 +84,7 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
     padding: 12px 16px;
     text-align: right;
     border-bottom: 1px solid #e0e0e0;
+    color: #333; /* Asegurar color oscuro en celdas */
 }
 .stDataFrame tbody td:first-child {
     text-align: left;
@@ -93,7 +94,7 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
 /* --- BOTONES DE DESCARGA --- */
 div[data-testid="stDownloadButton"] button {
     background-color: var(--primary-color);
-    color: white;
+    color: white; /* El texto aquí sí debe ser blanco */
     font-weight: bold;
     padding: 0.6rem 1rem;
     border-radius: 0.5rem;
@@ -120,7 +121,6 @@ div[data-testid="stDownloadButton"] button:hover {
 
 </style>
 """, unsafe_allow_html=True)
-
 
 # --- FUNCIONES DE CÁLCULO OPTIMIZADAS CON CACHÉ ---
 def apply_filters(full_df, selections):
