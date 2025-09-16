@@ -423,10 +423,9 @@ if uploaded_file is not None:
     
     with tab2:
         with st.spinner("Generando desgloses organizacionales..."):
-            selections = (st.session_state.final_selections, st.session_state.selected_cost_types, st.session_state.selected_quantity_types)
             # Gerencia y Ministerio
             with st.container(border=True):
-                df_grouped_gm = calculate_grouped_aggregation(df, *selections, ['Gerencia', 'Ministerio'], cost_columns_options, quantity_columns_options)
+                df_grouped_gm = calculate_grouped_aggregation(df, st.session_state.final_selections, ['Gerencia', 'Ministerio'], cost_columns_options, quantity_columns_options, st.session_state.selected_cost_types, st.session_state.selected_quantity_types)
                 st.header('Distribución por Gerencia y Ministerio')
                 if df_grouped_gm.empty: st.warning("No hay datos para 'Gerencia y Ministerio' con los filtros seleccionados.")
                 else:
@@ -442,7 +441,7 @@ if uploaded_file is not None:
             
             # Gerencia y Sexo
             with st.container(border=True):
-                df_grouped_gs = calculate_grouped_aggregation(df, *selections, ['Gerencia', 'Sexo'], cost_columns_options, quantity_columns_options)
+                df_grouped_gs = calculate_grouped_aggregation(df, st.session_state.final_selections, ['Gerencia', 'Sexo'], cost_columns_options, quantity_columns_options, st.session_state.selected_cost_types, st.session_state.selected_quantity_types)
                 st.header('Distribución por Gerencia y Sexo')
                 if not df_grouped_gs.empty:
                     total_gs = df_grouped_gs.sum(numeric_only=True).to_frame().T; total_gs['Gerencia'], total_gs['Sexo'] = 'TOTAL', ''
@@ -457,7 +456,7 @@ if uploaded_file is not None:
 
             # Ministerio y Sexo
             with st.container(border=True):
-                df_grouped_ms = calculate_grouped_aggregation(df, *selections, ['Ministerio', 'Sexo'], cost_columns_options, quantity_columns_options)
+                df_grouped_ms = calculate_grouped_aggregation(df, st.session_state.final_selections, ['Ministerio', 'Sexo'], cost_columns_options, quantity_columns_options, st.session_state.selected_cost_types, st.session_state.selected_quantity_types)
                 st.header('Distribución por Ministerio y Sexo')
                 if not df_grouped_ms.empty:
                     total_ms = df_grouped_ms.sum(numeric_only=True).to_frame().T; total_ms['Ministerio'], total_ms['Sexo'] = 'TOTAL', ''
@@ -472,7 +471,7 @@ if uploaded_file is not None:
 
             # Nivel y Sexo
             with st.container(border=True):
-                df_grouped_ns = calculate_grouped_aggregation(df, *selections, ['Nivel', 'Sexo'], cost_columns_options, quantity_columns_options)
+                df_grouped_ns = calculate_grouped_aggregation(df, st.session_state.final_selections, ['Nivel', 'Sexo'], cost_columns_options, quantity_columns_options, st.session_state.selected_cost_types, st.session_state.selected_quantity_types)
                 st.header('Distribución por Nivel y Sexo')
                 if not df_grouped_ns.empty:
                     total_ns = df_grouped_ns.sum(numeric_only=True).to_frame().T; total_ns['Nivel'], total_ns['Sexo'] = 'TOTAL', ''
@@ -487,7 +486,7 @@ if uploaded_file is not None:
 
             # Función y Sexo
             with st.container(border=True):
-                df_grouped_fs = calculate_grouped_aggregation(df, *selections, ['Función', 'Sexo'], cost_columns_options, quantity_columns_options)
+                df_grouped_fs = calculate_grouped_aggregation(df, st.session_state.final_selections, ['Función', 'Sexo'], cost_columns_options, quantity_columns_options, st.session_state.selected_cost_types, st.session_state.selected_quantity_types)
                 st.header('Distribución por Función y Sexo')
                 if not df_grouped_fs.empty:
                     total_fs = df_grouped_fs.sum(numeric_only=True).to_frame().T; total_fs['Función'], total_fs['Sexo'] = 'TOTAL', ''
@@ -545,3 +544,4 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados', 'tab4_brutos')
 else:
     st.info("⬆️ Esperando a que se suba un archivo Excel.")
+
