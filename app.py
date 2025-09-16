@@ -49,6 +49,11 @@ p, div, span, label, li, h1, h2, h3, h4, h5, h6 {
     padding: 1rem;
 }
 
+/* --- Redondear esquinas de los gráficos --- */
+[data-testid="stAltairChart"] {
+    border-radius: 8px;
+    overflow: hidden;
+}
 
 /* Estilo consistente para títulos y subtítulos */
 h1 { font-size: 2.2rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-bottom: 20px;}
