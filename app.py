@@ -37,10 +37,18 @@ p, div, span, label, li, h1, h2, h3, h4, h5, h6 {
 
 /* --- COLORES BASE DEL TEMA --- */
 [data-testid="stSidebar"],
-[data-testid="stVerticalBlockBorderWrapper"],
 .stTabs [data-basweb="tab"][aria-selected="true"] {
     background-color: var(--secondary-background-color);
 }
+
+/* Estilo para Contenedores (las 'tarjetas') */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: var(--secondary-background-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    padding: 1rem;
+}
+
 
 /* Estilo consistente para títulos y subtítulos */
 h1 { font-size: 2.2rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-bottom: 20px;}
