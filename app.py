@@ -286,11 +286,9 @@ if uploaded_file is not None:
             st.session_state.final_selections = {}
             st.rerun()
     with col2:
-        # El botón Cargar Todo es conceptualmente complejo con filtros en cascada.
-        # Una implementación simple sería preseleccionar solo el primer filtro.
-        # Por simplicidad y para evitar comportamientos inesperados, se puede omitir o
-        # simplemente dejar que el usuario seleccione "todo" manualmente.
-        pass
+        if st.button('📥 Cargar Todo', use_container_width=True):
+            st.session_state.cargar_todo_clicked = True
+            st.rerun()
 
     st.sidebar.markdown("---") 
 
@@ -299,10 +297,10 @@ if uploaded_file is not None:
             unique_values = dataframe[column_name].dropna().unique().tolist()
             if not unique_values: return []
             try:
-                # Intenta una ordenación numérica si es posible
-                return sorted(unique_values, key=lambda x: int(x) if x.isdigit() else float('inf'))
+                # Intenta una ordenación numérica si es posible, manejando no dígitos
+                return sorted(unique_values, key=lambda x: int(x) if isinstance(x, str) and x.isdigit() else float('inf'))
             except (ValueError, TypeError):
-                # De lo contrario, ordenación alfabética
+                 # De lo contrario, ordenación alfabética
                 return sorted(unique_values)
         return []
 
@@ -310,28 +308,42 @@ if uploaded_file is not None:
 
     if 'final_selections' not in st.session_state:
         st.session_state.final_selections = {col: [] for col in filter_cols_cascade}
-
-    # --- LÓGICA DE FILTROS EN CASCADA CORREGIDA ---
-    df_para_opciones = df.copy()
-    selections_made = {}
+    if 'cargar_todo_clicked' not in st.session_state:
+        st.session_state.cargar_todo_clicked = False
+        
+    # --- LÓGICA DE FILTROS INTERACTIVOS CORREGIDA ---
+    temp_selections = st.session_state.final_selections.copy()
 
     for col in filter_cols_cascade:
-        options = get_sorted_unique_options(df_para_opciones, col)
+        # Para obtener las opciones de este filtro, filtramos el DF original por las selecciones de TODOS los OTROS filtros
+        df_options = df.copy()
+        for other_col in filter_cols_cascade:
+            if other_col != col and temp_selections.get(other_col):
+                df_options = df_options[df_options[other_col].isin(temp_selections[other_col])]
         
-        # Obtener la selección previa del estado de la sesión
-        selection_previa = st.session_state.final_selections.get(col, [])
+        options = get_sorted_unique_options(df_options, col)
         
-        # Asegurarse de que la selección previa siga siendo válida
-        default_selection = [s for s in selection_previa if s in options]
-        
-        selection = st.sidebar.multiselect(f'Selecciona {col}(s):', options, default=default_selection, key=f"multiselect_{col}")
-        
-        st.session_state.final_selections[col] = selection
-        
-        # Actualizar el dataframe para el siguiente filtro en la cascada
-        if selection:
-            df_para_opciones = df_para_opciones[df_para_opciones[col].isin(selection)]
+        # Determinar el valor por defecto
+        default_selection = []
+        if st.session_state.cargar_todo_clicked:
+            default_selection = options
+        else:
+            selection_previa = temp_selections.get(col, [])
+            default_selection = [s for s in selection_previa if s in options]
 
+        # Crear el widget y actualizar la selección temporal
+        selection = st.sidebar.multiselect(
+            f'Selecciona {col}(s):', options, default=default_selection, key=f"multiselect_{col}"
+        )
+        temp_selections[col] = selection
+
+    # Actualizar el estado de la sesión con las nuevas selecciones
+    st.session_state.final_selections = temp_selections
+    
+    # Resetear el flag del botón después de construir los widgets
+    if st.session_state.cargar_todo_clicked:
+        st.session_state.cargar_todo_clicked = False
+        st.rerun()
 
     filtered_df = apply_filters(df, st.session_state.final_selections)
 
@@ -370,13 +382,17 @@ if uploaded_file is not None:
                         cost_bars_vars = [cost_columns_options[k] for k in selected_cost_types_display]
                         monthly_trends_costos_melted_bars = chart_data.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
                         bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero'), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=color_domain, range=color_range)))
-                        st.altair_chart(bars_costos, use_container_width=True)
+                        line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)'), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format=',.2f')])
+                        chart_costos_mensual = alt.layer(bars_costos, line_costos).resolve_scale(y='shared').properties(title=alt.TitleParams('Costos Mensuales', anchor='middle')).interactive()
+                        st.altair_chart(chart_costos_mensual, use_container_width=True)
                     with col2:
                         chart_data = monthly_trends_agg
                         quantity_bars_vars = [quantity_columns_options[k] for k in selected_quantity_types_display]
                         monthly_trends_cantidades_melted_bars = chart_data.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
                         bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Cantidad:Q', stack='zero'), color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=color_domain, range=color_range)))
-                        st.altair_chart(bars_cantidades, use_container_width=True)
+                        line_cantidades = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Cantidades:Q', title='Cantidad'), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')])
+                        chart_cantidades_mensual = alt.layer(bars_cantidades, line_cantidades).resolve_scale(y='shared').properties(title=alt.TitleParams('Cantidades Mensuales', anchor='middle')).interactive()
+                        st.altair_chart(chart_cantidades_mensual, use_container_width=True)
                     
                     st.subheader('Tabla de Tendencias Mensuales')
                     st.dataframe(format_st_dataframe(monthly_trends_agg_with_total), use_container_width=True)
@@ -551,4 +567,3 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados', 'tab4_brutos')
 else:
     st.info("⬆️ Esperando a que se suba un archivo Excel.")
-
