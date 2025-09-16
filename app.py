@@ -336,6 +336,7 @@ if uploaded_file is not None:
         else:
             with st.container(border=True):
                 with st.spinner("Generando análisis de tendencias..."):
+                    # CORRECCIÓN: Usar filtered_df en lugar de df
                     monthly_trends_agg = calculate_monthly_trends(filtered_df, cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
                     
                     # --- AÑADIR FILA DE TOTALES ---
@@ -393,6 +394,7 @@ if uploaded_file is not None:
             with st.spinner("Generando desgloses organizacionales..."):
                 # Gerencia y Ministerio
                 with st.container(border=True):
+                    # CORRECCIÓN: Usar filtered_df en lugar de df
                     df_grouped_gm = calculate_grouped_aggregation(filtered_df, ['Gerencia', 'Ministerio'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
                     if not df_grouped_gm.empty:
                         total_gm = df_grouped_gm.sum(numeric_only=True).to_frame().T
@@ -415,6 +417,7 @@ if uploaded_file is not None:
 
                 # Gerencia y Sexo
                 with st.container(border=True):
+                    # CORRECCIÓN: Usar filtered_df en lugar de df
                     df_grouped_gs = calculate_grouped_aggregation(filtered_df, ['Gerencia', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
                     if not df_grouped_gs.empty:
                         total_gs = df_grouped_gs.sum(numeric_only=True).to_frame().T
@@ -437,6 +440,7 @@ if uploaded_file is not None:
 
                 # Ministerio y Sexo
                 with st.container(border=True):
+                    # CORRECCIÓN: Usar filtered_df en lugar de df
                     df_grouped_ms = calculate_grouped_aggregation(filtered_df, ['Ministerio', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
                     if not df_grouped_ms.empty:
                         total_ms = df_grouped_ms.sum(numeric_only=True).to_frame().T
@@ -459,6 +463,7 @@ if uploaded_file is not None:
 
                 # Nivel y Sexo
                 with st.container(border=True):
+                    # CORRECCIÓN: Usar filtered_df en lugar de df
                     df_grouped_ns = calculate_grouped_aggregation(filtered_df, ['Nivel', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
                     if not df_grouped_ns.empty:
                         total_ns = df_grouped_ns.sum(numeric_only=True).to_frame().T
@@ -481,6 +486,7 @@ if uploaded_file is not None:
 
                 # Función y Sexo
                 with st.container(border=True):
+                    # CORRECCIÓN: Usar filtered_df en lugar de df
                     df_grouped_fs = calculate_grouped_aggregation(filtered_df, ['Función', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
                     if not df_grouped_fs.empty:
                         total_fs = df_grouped_fs.sum(numeric_only=True).to_frame().T
@@ -507,6 +513,7 @@ if uploaded_file is not None:
         else:
             with st.container(border=True):
                 with st.spinner("Calculando ranking de empleados..."):
+                    # CORRECCIÓN: Usar filtered_df en lugar de df
                     employee_overtime = calculate_employee_overtime(filtered_df, cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
                     
                     st.header(f'Top {top_n_employees} Empleados con Mayor Horas Extras')
@@ -542,6 +549,7 @@ if uploaded_file is not None:
                 with st.spinner("Calculando valores promedio por hora..."):
                     st.header('Valores Promedio por Hora')
                     grouping_dimension = st.selectbox('Selecciona la dimensión de desglose:', ['Gerencia', 'Legajo', 'Función', 'CECO', 'Ubicación', 'Nivel', 'Sexo'], key='valor_hora_grouping')
+                    # CORRECCIÓN: Usar filtered_df en lugar de df
                     df_valor_hora = calculate_average_hourly_rate(filtered_df, grouping_dimension)
                     
                     if not df_valor_hora.empty:
@@ -553,6 +561,7 @@ if uploaded_file is not None:
     with tab4:
         with st.container(border=True):
             st.header('Tabla de Datos Brutos Filtrados')
+            # CORRECCIÓN: Usar filtered_df en lugar de df
             st.dataframe(format_st_dataframe(filtered_df), use_container_width=True)
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados')
 else:
