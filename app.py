@@ -52,7 +52,7 @@ p, div, span, label, li, h1, h2, h3, h4, h5, h6 {
 /* --- Redondear esquinas de los gráficos --- */
 [data-testid="stAltairChart"] {
     border-radius: 8px;
-    overflow: hidden;
+    overflow: hidden; /* Esto es clave para que el contenido del gráfico no se salga de los bordes redondeados */
 }
 
 /* Estilo consistente para títulos y subtítulos */
