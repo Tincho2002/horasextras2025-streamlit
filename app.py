@@ -277,19 +277,36 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-    # --- FILTROS INTERACTIVOS (CON BOTONES DE ACCIÓN) ---
+    # --- DEFINICIÓN Y ESTADO DE FILTROS ---
     st.sidebar.header('Filtros del Dashboard')
+    cost_columns_options = {'Horas extras al 50 %': 'Horas extras al 50 %', 'Horas extras al 50 % Sabados': 'Horas extras al 50 % Sabados', 'Horas extras al 100%': 'Horas extras al 100%', 'Importe HE Fc': 'Importe HE Fc'}
+    quantity_columns_options = {'Cantidad HE 50': 'Cantidad HE 50', 'Cant HE al 50 Sabados': 'Cant HE al 50 Sabados', 'Cantidad HE 100': 'Cantidad HE 100', 'Cantidad HE FC': 'Cantidad HE FC'}
+    filter_cols_cascade = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
 
+    # Inicialización del estado de la sesión
+    if 'final_selections' not in st.session_state:
+        st.session_state.final_selections = {col: [] for col in filter_cols_cascade}
+    if 'selected_cost_types' not in st.session_state:
+        st.session_state.selected_cost_types = list(cost_columns_options.keys())
+    if 'selected_quantity_types' not in st.session_state:
+        st.session_state.selected_quantity_types = list(quantity_columns_options.keys())
+    if 'cargar_todo_clicked' not in st.session_state:
+        st.session_state.cargar_todo_clicked = False
+    
+    # --- BOTONES DE ACCIÓN ---
     col1, col2 = st.sidebar.columns(2)
     with col1:
         if st.button('🧹 Limpiar Filtros', use_container_width=True):
             st.session_state.final_selections = {}
+            st.session_state.selected_cost_types = list(cost_columns_options.keys())
+            st.session_state.selected_quantity_types = list(quantity_columns_options.keys())
             st.rerun()
     with col2:
         if st.button('📥 Cargar Todo', use_container_width=True):
             st.session_state.cargar_todo_clicked = True
+            st.session_state.selected_cost_types = list(cost_columns_options.keys())
+            st.session_state.selected_quantity_types = list(quantity_columns_options.keys())
             st.rerun()
-
     st.sidebar.markdown("---") 
 
     def get_sorted_unique_options(dataframe, column_name):
@@ -297,63 +314,49 @@ if uploaded_file is not None:
             unique_values = dataframe[column_name].dropna().unique().tolist()
             if not unique_values: return []
             try:
-                # Intenta una ordenación numérica si es posible, manejando no dígitos
                 return sorted(unique_values, key=lambda x: int(x) if isinstance(x, str) and x.isdigit() else float('inf'))
             except (ValueError, TypeError):
-                 # De lo contrario, ordenación alfabética
                 return sorted(unique_values)
         return []
 
-    filter_cols_cascade = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
-
-    if 'final_selections' not in st.session_state:
-        st.session_state.final_selections = {col: [] for col in filter_cols_cascade}
-    if 'cargar_todo_clicked' not in st.session_state:
-        st.session_state.cargar_todo_clicked = False
-        
-    # --- LÓGICA DE FILTROS INTERACTIVOS CORREGIDA ---
+    # --- LÓGICA DE FILTROS PRINCIPALES ---
     temp_selections = st.session_state.final_selections.copy()
-
     for col in filter_cols_cascade:
-        # Para obtener las opciones de este filtro, filtramos el DF original por las selecciones de TODOS los OTROS filtros
         df_options = df.copy()
         for other_col in filter_cols_cascade:
             if other_col != col and temp_selections.get(other_col):
                 df_options = df_options[df_options[other_col].isin(temp_selections[other_col])]
-        
         options = get_sorted_unique_options(df_options, col)
         
-        # Determinar el valor por defecto
-        default_selection = []
+        default_selection = [s for s in temp_selections.get(col, []) if s in options]
         if st.session_state.cargar_todo_clicked:
             default_selection = options
-        else:
-            selection_previa = temp_selections.get(col, [])
-            default_selection = [s for s in selection_previa if s in options]
 
-        # Crear el widget y actualizar la selección temporal
-        selection = st.sidebar.multiselect(
-            f'Selecciona {col}(s):', options, default=default_selection, key=f"multiselect_{col}"
-        )
+        selection = st.sidebar.multiselect(f'Selecciona {col}(s):', options, default=default_selection, key=f"multiselect_{col}")
         temp_selections[col] = selection
-
-    # Actualizar el estado de la sesión con las nuevas selecciones
     st.session_state.final_selections = temp_selections
     
-    # Resetear el flag del botón después de construir los widgets
+    # Resetear flag del botón
     if st.session_state.cargar_todo_clicked:
         st.session_state.cargar_todo_clicked = False
         st.rerun()
 
     filtered_df = apply_filters(df, st.session_state.final_selections)
 
+    # --- LÓGICA DE FILTROS DE TIPOS DE HORA (DINÁMICOS) ---
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
     st.sidebar.markdown("---")
     st.sidebar.subheader("Selección de Tipos de Horas Extras")
-    cost_columns_options = {'Horas extras al 50 %': 'Horas extras al 50 %', 'Horas extras al 50 % Sabados': 'Horas extras al 50 % Sabados', 'Horas extras al 100%': 'Horas extras al 100%', 'Importe HE Fc': 'Importe HE Fc'}
-    quantity_columns_options = {'Cantidad HE 50': 'Cantidad HE 50', 'Cant HE al 50 Sabados': 'Cant HE al 50 Sabados', 'Cantidad HE 100': 'Cantidad HE 100', 'Cantidad HE FC': 'Cantidad HE FC'}
-    selected_cost_types_display = st.sidebar.multiselect('Selecciona Tipos de Costo de HE:', list(cost_columns_options.keys()), default=list(cost_columns_options.keys()), key='filter_cost_types')
-    selected_quantity_types_display = st.sidebar.multiselect('Selecciona Tipos de Cantidad de HE:', list(quantity_columns_options.keys()), default=list(quantity_columns_options.keys()), key='filter_quantity_types')
+
+    available_cost_options = [opt for opt, col in cost_columns_options.items() if col in filtered_df.columns and filtered_df[col].sum() > 0]
+    available_quantity_options = [opt for opt, col in quantity_columns_options.items() if col in filtered_df.columns and filtered_df[col].sum() > 0]
+    
+    valid_cost_selection = [s for s in st.session_state.selected_cost_types if s in available_cost_options]
+    st.session_state.selected_cost_types = st.sidebar.multiselect('Selecciona Tipos de Costo de HE:', options=available_cost_options, default=valid_cost_selection)
+    
+    valid_quantity_selection = [s for s in st.session_state.selected_quantity_types if s in available_quantity_options]
+    st.session_state.selected_quantity_types = st.sidebar.multiselect('Selecciona Tipos de Cantidad de HE:', options=available_quantity_options, default=valid_quantity_selection)
+
 
     st.info(f"Mostrando **{len(filtered_df)}** registros según los filtros aplicados.")
     
@@ -363,7 +366,7 @@ if uploaded_file is not None:
     with tab1:
         with st.container(border=True):
             with st.spinner("Generando análisis de tendencias..."):
-                monthly_trends_agg = calculate_monthly_trends(df, st.session_state.final_selections, cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
+                monthly_trends_agg = calculate_monthly_trends(df, st.session_state.final_selections, cost_columns_options, quantity_columns_options, st.session_state.selected_cost_types, st.session_state.selected_quantity_types)
                 
                 if monthly_trends_agg.empty:
                     st.warning("No hay datos para mostrar con los filtros seleccionados.")
@@ -371,10 +374,8 @@ if uploaded_file is not None:
                     total_row = monthly_trends_agg.sum(numeric_only=True).to_frame().T
                     total_row['Mes'] = 'TOTAL'
                     monthly_trends_agg_with_total = pd.concat([monthly_trends_agg, total_row], ignore_index=True)
-    
                     st.header('Tendencias Mensuales de Horas Extras')
                     
-                    # --- CORRECCIÓN DE LEYENDAS DE GRÁFICOS ---
                     cost_color_domain = list(cost_columns_options.values())
                     quantity_color_domain = list(quantity_columns_options.values())
                     color_range = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
@@ -382,7 +383,7 @@ if uploaded_file is not None:
                     col1, col2 = st.columns(2)
                     with col1:
                         chart_data = monthly_trends_agg 
-                        cost_bars_vars = [cost_columns_options[k] for k in selected_cost_types_display]
+                        cost_bars_vars = [cost_columns_options[k] for k in st.session_state.selected_cost_types]
                         monthly_trends_costos_melted_bars = chart_data.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
                         bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero'), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=cost_color_domain, range=color_range)))
                         line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)'), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format=',.2f')])
@@ -390,7 +391,7 @@ if uploaded_file is not None:
                         st.altair_chart(chart_costos_mensual, use_container_width=True)
                     with col2:
                         chart_data = monthly_trends_agg
-                        quantity_bars_vars = [quantity_columns_options[k] for k in selected_quantity_types_display]
+                        quantity_bars_vars = [quantity_columns_options[k] for k in st.session_state.selected_quantity_types]
                         monthly_trends_cantidades_melted_bars = chart_data.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
                         bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Cantidad:Q', stack='zero'), color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=quantity_color_domain, range=color_range)))
                         line_cantidades = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Cantidades:Q', title='Cantidad'), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')])
@@ -402,7 +403,7 @@ if uploaded_file is not None:
                     generate_download_buttons(monthly_trends_agg_with_total, 'tendencias_mensuales', 'tab1_trends')
 
         with st.container(border=True):
-            monthly_trends_agg = calculate_monthly_trends(df, st.session_state.final_selections, cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
+            monthly_trends_agg = calculate_monthly_trends(df, st.session_state.final_selections, cost_columns_options, quantity_columns_options, st.session_state.selected_cost_types, st.session_state.selected_quantity_types)
             if not monthly_trends_agg.empty:
                 with st.spinner("Calculando variaciones mensuales..."):
                     monthly_trends_for_var = calculate_monthly_variations(monthly_trends_agg)
@@ -422,130 +423,105 @@ if uploaded_file is not None:
     
     with tab2:
         with st.spinner("Generando desgloses organizacionales..."):
+            selections = (st.session_state.final_selections, st.session_state.selected_cost_types, st.session_state.selected_quantity_types)
             # Gerencia y Ministerio
             with st.container(border=True):
-                df_grouped_gm = calculate_grouped_aggregation(df, st.session_state.final_selections, ['Gerencia', 'Ministerio'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
+                df_grouped_gm = calculate_grouped_aggregation(df, *selections, ['Gerencia', 'Ministerio'], cost_columns_options, quantity_columns_options)
                 st.header('Distribución por Gerencia y Ministerio')
                 if df_grouped_gm.empty: st.warning("No hay datos para 'Gerencia y Ministerio' con los filtros seleccionados.")
                 else:
-                    total_gm = df_grouped_gm.sum(numeric_only=True).to_frame().T
-                    total_gm['Gerencia'], total_gm['Ministerio'] = 'TOTAL', ''
+                    total_gm = df_grouped_gm.sum(numeric_only=True).to_frame().T; total_gm['Gerencia'], total_gm['Ministerio'] = 'TOTAL', ''
                     df_grouped_gm_with_total = pd.concat([df_grouped_gm, total_gm], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        chart_costos_gm = alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Costos', y=alt.Y('Gerencia:N', sort='-x'), color='Ministerio').properties(title='Costos')
-                        st.altair_chart(chart_costos_gm, use_container_width=True)
+                        st.altair_chart(alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Costos', y=alt.Y('Gerencia:N', sort='-x'), color='Ministerio').properties(title='Costos'), use_container_width=True)
                     with col2:
-                        chart_cantidades_gm = alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Gerencia:N', sort='-x'), color='Ministerio').properties(title='Cantidades')
-                        st.altair_chart(chart_cantidades_gm, use_container_width=True)
-                    st.subheader('Tabla de Distribución')
-                    st.dataframe(format_st_dataframe(df_grouped_gm_with_total), use_container_width=True)
+                        st.altair_chart(alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Gerencia:N', sort='-x'), color='Ministerio').properties(title='Cantidades'), use_container_width=True)
+                    st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_gm_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_gm_with_total, 'dist_gerencia_ministerio', 'tab2_gm')
             
             # Gerencia y Sexo
             with st.container(border=True):
-                df_grouped_gs = calculate_grouped_aggregation(df, st.session_state.final_selections, ['Gerencia', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
+                df_grouped_gs = calculate_grouped_aggregation(df, *selections, ['Gerencia', 'Sexo'], cost_columns_options, quantity_columns_options)
                 st.header('Distribución por Gerencia y Sexo')
                 if not df_grouped_gs.empty:
-                    total_gs = df_grouped_gs.sum(numeric_only=True).to_frame().T
-                    total_gs['Gerencia'], total_gs['Sexo'] = 'TOTAL', ''
+                    total_gs = df_grouped_gs.sum(numeric_only=True).to_frame().T; total_gs['Gerencia'], total_gs['Sexo'] = 'TOTAL', ''
                     df_grouped_gs_with_total = pd.concat([df_grouped_gs, total_gs], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        chart_costos_gs = alt.Chart(df_grouped_gs).mark_bar().encode(x='Total_Costos', y=alt.Y('Gerencia:N', sort='-x'), color='Sexo').properties(title='Costos')
-                        st.altair_chart(chart_costos_gs, use_container_width=True)
+                        st.altair_chart(alt.Chart(df_grouped_gs).mark_bar().encode(x='Total_Costos', y=alt.Y('Gerencia:N', sort='-x'), color='Sexo').properties(title='Costos'), use_container_width=True)
                     with col2:
-                        chart_cantidades_gs = alt.Chart(df_grouped_gs).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Gerencia:N', sort='-x'), color='Sexo').properties(title='Cantidades')
-                        st.altair_chart(chart_cantidades_gs, use_container_width=True)
-                    st.subheader('Tabla de Distribución')
-                    st.dataframe(format_st_dataframe(df_grouped_gs_with_total), use_container_width=True)
+                        st.altair_chart(alt.Chart(df_grouped_gs).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Gerencia:N', sort='-x'), color='Sexo').properties(title='Cantidades'), use_container_width=True)
+                    st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_gs_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_gs_with_total, 'dist_gerencia_sexo', 'tab2_gs')
 
             # Ministerio y Sexo
             with st.container(border=True):
-                df_grouped_ms = calculate_grouped_aggregation(df, st.session_state.final_selections, ['Ministerio', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
+                df_grouped_ms = calculate_grouped_aggregation(df, *selections, ['Ministerio', 'Sexo'], cost_columns_options, quantity_columns_options)
                 st.header('Distribución por Ministerio y Sexo')
                 if not df_grouped_ms.empty:
-                    total_ms = df_grouped_ms.sum(numeric_only=True).to_frame().T
-                    total_ms['Ministerio'], total_ms['Sexo'] = 'TOTAL', ''
+                    total_ms = df_grouped_ms.sum(numeric_only=True).to_frame().T; total_ms['Ministerio'], total_ms['Sexo'] = 'TOTAL', ''
                     df_grouped_ms_with_total = pd.concat([df_grouped_ms, total_ms], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        chart_costos_ms = alt.Chart(df_grouped_ms).mark_bar().encode(x='Total_Costos', y=alt.Y('Ministerio:N', sort='-x'), color='Sexo').properties(title='Costos')
-                        st.altair_chart(chart_costos_ms, use_container_width=True)
+                        st.altair_chart(alt.Chart(df_grouped_ms).mark_bar().encode(x='Total_Costos', y=alt.Y('Ministerio:N', sort='-x'), color='Sexo').properties(title='Costos'), use_container_width=True)
                     with col2:
-                        chart_cantidades_ms = alt.Chart(df_grouped_ms).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Ministerio:N', sort='-x'), color='Sexo').properties(title='Cantidades')
-                        st.altair_chart(chart_cantidades_ms, use_container_width=True)
-                    st.subheader('Tabla de Distribución')
-                    st.dataframe(format_st_dataframe(df_grouped_ms_with_total), use_container_width=True)
+                        st.altair_chart(alt.Chart(df_grouped_ms).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Ministerio:N', sort='-x'), color='Sexo').properties(title='Cantidades'), use_container_width=True)
+                    st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_ms_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_ms_with_total, 'dist_ministerio_sexo', 'tab2_ms')
 
             # Nivel y Sexo
             with st.container(border=True):
-                df_grouped_ns = calculate_grouped_aggregation(df, st.session_state.final_selections, ['Nivel', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
+                df_grouped_ns = calculate_grouped_aggregation(df, *selections, ['Nivel', 'Sexo'], cost_columns_options, quantity_columns_options)
                 st.header('Distribución por Nivel y Sexo')
                 if not df_grouped_ns.empty:
-                    total_ns = df_grouped_ns.sum(numeric_only=True).to_frame().T
-                    total_ns['Nivel'], total_ns['Sexo'] = 'TOTAL', ''
+                    total_ns = df_grouped_ns.sum(numeric_only=True).to_frame().T; total_ns['Nivel'], total_ns['Sexo'] = 'TOTAL', ''
                     df_grouped_ns_with_total = pd.concat([df_grouped_ns, total_ns], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        chart_costos_ns = alt.Chart(df_grouped_ns).mark_bar().encode(x='Total_Costos', y=alt.Y('Nivel:N', sort='-x'), color='Sexo').properties(title='Costos')
-                        st.altair_chart(chart_costos_ns, use_container_width=True)
+                        st.altair_chart(alt.Chart(df_grouped_ns).mark_bar().encode(x='Total_Costos', y=alt.Y('Nivel:N', sort='-x'), color='Sexo').properties(title='Costos'), use_container_width=True)
                     with col2:
-                        chart_cantidades_ns = alt.Chart(df_grouped_ns).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Nivel:N', sort='-x'), color='Sexo').properties(title='Cantidades')
-                        st.altair_chart(chart_cantidades_ns, use_container_width=True)
-                    st.subheader('Tabla de Distribución')
-                    st.dataframe(format_st_dataframe(df_grouped_ns_with_total), use_container_width=True)
+                        st.altair_chart(alt.Chart(df_grouped_ns).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Nivel:N', sort='-x'), color='Sexo').properties(title='Cantidades'), use_container_width=True)
+                    st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_ns_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_ns_with_total, 'dist_nivel_sexo', 'tab2_ns')
 
             # Función y Sexo
             with st.container(border=True):
-                df_grouped_fs = calculate_grouped_aggregation(df, st.session_state.final_selections, ['Función', 'Sexo'], cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
+                df_grouped_fs = calculate_grouped_aggregation(df, *selections, ['Función', 'Sexo'], cost_columns_options, quantity_columns_options)
                 st.header('Distribución por Función y Sexo')
                 if not df_grouped_fs.empty:
-                    total_fs = df_grouped_fs.sum(numeric_only=True).to_frame().T
-                    total_fs['Función'], total_fs['Sexo'] = 'TOTAL', ''
+                    total_fs = df_grouped_fs.sum(numeric_only=True).to_frame().T; total_fs['Función'], total_fs['Sexo'] = 'TOTAL', ''
                     df_grouped_fs_with_total = pd.concat([df_grouped_fs, total_fs], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        chart_costos_fs = alt.Chart(df_grouped_fs).mark_bar().encode(x='Total_Costos', y=alt.Y('Función:N', sort='-x'), color='Sexo').properties(title='Costos')
-                        st.altair_chart(chart_costos_fs, use_container_width=True)
+                        st.altair_chart(alt.Chart(df_grouped_fs).mark_bar().encode(x='Total_Costos', y=alt.Y('Función:N', sort='-x'), color='Sexo').properties(title='Costos'), use_container_width=True)
                     with col2:
-                        chart_cantidades_fs = alt.Chart(df_grouped_fs).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Función:N', sort='-x'), color='Sexo').properties(title='Cantidades')
-                        st.altair_chart(chart_cantidades_fs, use_container_width=True)
-                    st.subheader('Tabla de Distribución')
-                    st.dataframe(format_st_dataframe(df_grouped_fs_with_total), use_container_width=True)
+                        st.altair_chart(alt.Chart(df_grouped_fs).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Función:N', sort='-x'), color='Sexo').properties(title='Cantidades'), use_container_width=True)
+                    st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_fs_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_fs_with_total, 'dist_funcion_sexo', 'tab2_fs')
 
     with tab3:
         with st.container(border=True):
             with st.spinner("Calculando ranking de empleados..."):
-                employee_overtime = calculate_employee_overtime(df, st.session_state.final_selections, cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
+                employee_overtime = calculate_employee_overtime(df, st.session_state.final_selections, cost_columns_options, quantity_columns_options, st.session_state.selected_cost_types, st.session_state.selected_quantity_types)
                 if employee_overtime.empty:
                     st.warning("No hay datos para mostrar con los filtros seleccionados.")
                 else:
                     st.header(f'Top {top_n_employees} Empleados con Mayor Horas Extras')
-                    
                     top_costo_empleados = employee_overtime.nlargest(top_n_employees, 'Total_Costos')
                     top_cantidad_empleados = employee_overtime.nlargest(top_n_employees, 'Total_Cantidades')
-
                     col1, col2 = st.columns(2)
                     with col1:
                         st.subheader('Top por Costo')
                         if not top_costo_empleados.empty:
-                            chart_top_costo = alt.Chart(top_costo_empleados).mark_bar().encode(y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), x='Total_Costos:Q').properties(title=f'Top {top_n_employees} por Costo')
-                            st.altair_chart(chart_top_costo, use_container_width=True)
+                            st.altair_chart(alt.Chart(top_costo_empleados).mark_bar().encode(y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), x='Total_Costos:Q').properties(title=f'Top {top_n_employees} por Costo'), use_container_width=True)
                     with col2:
                         st.subheader('Top por Cantidad')
                         if not top_cantidad_empleados.empty:
-                            chart_top_cantidad = alt.Chart(top_cantidad_empleados).mark_bar().encode(y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), x='Total_Cantidades:Q').properties(title=f'Top {top_n_employees} por Cantidad')
-                            st.altair_chart(chart_top_cantidad, use_container_width=True)
-                    
+                            st.altair_chart(alt.Chart(top_cantidad_empleados).mark_bar().encode(y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), x='Total_Cantidades:Q').properties(title=f'Top {top_n_employees} por Cantidad'), use_container_width=True)
                     st.subheader('Tabla de Top Empleados por Costo')
                     st.dataframe(format_st_dataframe(top_costo_empleados), use_container_width=True)
                     generate_download_buttons(top_costo_empleados, f'top_{top_n_employees}_costo', 'tab3_costo')
-                    
                     st.subheader('Tabla de Top Empleados por Cantidad')
                     st.dataframe(format_st_dataframe(top_cantidad_empleados), use_container_width=True)
                     generate_download_buttons(top_cantidad_empleados, f'top_{top_n_employees}_cantidad', 'tab3_cant')
@@ -556,7 +532,6 @@ if uploaded_file is not None:
                 st.header('Valores Promedio por Hora')
                 grouping_dimension = st.selectbox('Selecciona la dimensión de desglose:', ['Gerencia', 'Legajo', 'Función', 'CECO', 'Ubicación', 'Nivel', 'Sexo'], key='valor_hora_grouping')
                 df_valor_hora = calculate_average_hourly_rate(df, st.session_state.final_selections, grouping_dimension)
-                
                 if not df_valor_hora.empty:
                     st.dataframe(format_st_dataframe(df_valor_hora), use_container_width=True)
                     generate_download_buttons(df_valor_hora, f'valores_promedio_hora_por_{grouping_dimension}', 'tab_valor_hora')
@@ -570,4 +545,3 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados', 'tab4_brutos')
 else:
     st.info("⬆️ Esperando a que se suba un archivo Excel.")
-
