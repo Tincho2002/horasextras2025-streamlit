@@ -9,11 +9,25 @@ st.set_page_config(layout="wide")
 # --- CSS Personalizado para un Estilo Profesional ---
 st.markdown("""
 <style>
+/* --- TEMA PERSONALIZADO PARA CONSISTENCIA VISUAL --- */
+:root {
+    --primary-color: #6C5CE7;
+    --background-color: #f0f2f6;
+    --secondary-background-color: #f8f7fc;
+    --text-color: #1a1a2e;
+    --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+}
+
 /* --- GENERAL Y TIPOGRAFÍA --- */
 .stApp {
-    background-color: #f0f2f6; 
+    background-color: var(--background-color); 
     font-size: 0.92rem;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: var(--font);
     color: #333;
 }
 
@@ -21,7 +35,7 @@ st.markdown("""
 [data-testid="stSidebar"],
 [data-testid="stVerticalBlockBorderWrapper"],
 .stTabs [data-basweb="tab"][aria-selected="true"] {
-    background-color: #f8f7fc;
+    background-color: var(--secondary-background-color);
 }
 
 /* Estilo consistente para títulos y subtítulos */
@@ -29,7 +43,7 @@ h1, h2, h3 {
     font-weight: 600;
     color: #1a1a2e;
 }
-h1 { font-size: 2.2rem; border-bottom: 2px solid #6C5CE7; padding-bottom: 10px; margin-bottom: 20px;}
+h1 { font-size: 2.2rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-bottom: 20px;}
 h2 { font-size: 1.6rem; color: #4a4a4a;}
 h3 { font-size: 1.3rem; color: #5a5a5a;}
 
@@ -52,7 +66,7 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
     box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 .stDataFrame thead th {
-    background-color: #6C5CE7;
+    background-color: var(--primary-color);
     color: white;
     font-weight: bold;
     text-align: left;
@@ -78,7 +92,7 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
 
 /* --- BOTONES DE DESCARGA --- */
 div[data-testid="stDownloadButton"] button {
-    background-color: #6C5CE7;
+    background-color: var(--primary-color);
     color: white;
     font-weight: bold;
     padding: 0.6rem 1rem;
@@ -101,7 +115,7 @@ div[data-testid="stDownloadButton"] button:hover {
     font-weight: 600;
 }
 .stTabs [data-basweb="tab"][aria-selected="true"] {
-    border-bottom: 3px solid #6C5CE7;
+    border-bottom: 3px solid var(--primary-color);
 }
 
 </style>
@@ -310,7 +324,6 @@ if uploaded_file is not None:
     with col2:
         if st.button('📥 Cargar Todo', use_container_width=True):
             st.session_state.cargar_todo_clicked = True
-            # No es necesario resetear los tipos de hora aquí, la lógica de los widgets se encargará
             st.rerun()
     st.sidebar.markdown("---") 
 
@@ -351,19 +364,16 @@ if uploaded_file is not None:
     available_cost_options = [opt for opt, col in cost_columns_options.items() if col in filtered_df.columns and filtered_df[col].sum() > 0]
     available_quantity_options = [opt for opt, col in quantity_columns_options.items() if col in filtered_df.columns and filtered_df[col].sum() > 0]
     
-    # Si se hizo clic en Cargar Todo, las selecciones de tipo de hora deben ser todas las disponibles
     if st.session_state.cargar_todo_clicked:
         st.session_state.cost_types_ms = available_cost_options
         st.session_state.quantity_types_ms = available_quantity_options
 
-    # Asegurarse de que la selección actual solo contenga opciones válidas
     st.session_state.cost_types_ms = [s for s in st.session_state.cost_types_ms if s in available_cost_options]
     st.session_state.quantity_types_ms = [s for s in st.session_state.quantity_types_ms if s in available_quantity_options]
 
     st.sidebar.multiselect('Selecciona Tipos de Costo de HE:', options=available_cost_options, key='cost_types_ms')
     st.sidebar.multiselect('Selecciona Tipos de Cantidad de HE:', options=available_quantity_options, key='quantity_types_ms')
     
-    # Resetear flag del botón al final del script para que solo se use una vez
     if st.session_state.cargar_todo_clicked:
         st.session_state.cargar_todo_clicked = False
         st.rerun()
