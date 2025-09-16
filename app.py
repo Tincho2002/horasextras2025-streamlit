@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import io
-import time # Importado para la demostración del spinner
 
 # --- Configuración de la página ---
 st.set_page_config(layout="wide")
@@ -258,7 +257,7 @@ if uploaded_file is not None:
         st.stop()
     st.success(f"Se ha cargado un total de **{len(df)}** registros de horas extras.")
 
-    # --- FILTROS INTERACTIVOS (CON BOTONES DE ACCIÓN) ---
+    # --- INICIO SECCIÓN CORREGIDA ---
     st.sidebar.header('Filtros del Dashboard')
 
     col1, col2 = st.sidebar.columns(2)
@@ -273,7 +272,7 @@ if uploaded_file is not None:
             st.session_state.cargar_todos = True
             st.rerun()
 
-    st.sidebar.markdown("---") 
+    st.sidebar.markdown("---")
 
     def get_sorted_unique_options(dataframe, column_name):
         if column_name in dataframe.columns:
@@ -293,27 +292,42 @@ if uploaded_file is not None:
     if 'final_selections' not in st.session_state: st.session_state.final_selections = {}
     if 'cargar_todos' not in st.session_state: st.session_state.cargar_todos = False
 
-    df_options_scope = df.copy() 
+    df_options_scope = df.copy()
     parent_changed = False
     new_selections = {}
-    df_filtrado_final = df.copy()
 
+    # PASO 1: Crear los widgets y recolectar las selecciones del usuario
     for col in filter_cols_cascade:
         options = get_sorted_unique_options(df_options_scope, col)
         last_selection = st.session_state.final_selections.get(col, [])
-        if st.session_state.cargar_todos: default_value = options
-        elif parent_changed: default_value = options
-        else: default_value = [item for item in last_selection if item in options]
+        
+        if st.session_state.cargar_todos:
+            default_value = options
+        elif parent_changed:
+            default_value = [] # Se resetea el hijo si el padre cambió
+        else:
+            default_value = [item for item in last_selection if item in options]
+        
         selection = st.sidebar.multiselect(f'Selecciona {col}(s):', options, default=default_value, key=f"multiselect_{col}")
-        if not parent_changed and set(selection) != set(default_value): parent_changed = True
+        
+        if not parent_changed and set(selection) != set(default_value):
+            parent_changed = True
+            
         new_selections[col] = selection
+        
         if selection:
             df_options_scope = df_options_scope[df_options_scope[col].isin(selection)]
-            df_filtrado_final = df_filtrado_final[df_filtrado_final[col].isin(selection)]
 
     st.session_state.final_selections = new_selections
     if st.session_state.cargar_todos: st.session_state.cargar_todos = False
-    filtered_df = df_filtrado_final
+
+    # PASO 2: Aplicar todas las selecciones al dataframe principal
+    filtered_df = df.copy()
+    for col, selection in st.session_state.final_selections.items():
+        if selection:
+            filtered_df = filtered_df[filtered_df[col].isin(selection)]
+            
+    # --- FIN SECCIÓN CORREGIDA ---
 
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
     st.sidebar.markdown("---")
@@ -331,13 +345,13 @@ if uploaded_file is not None:
     color_domain = ['Horas extras al 50 %', 'Horas extras al 50 % Sabados', 'Horas extras al 100%', 'Importe HE Fc', 'Cantidad HE 50', 'Cant HE al 50 Sabados', 'Cantidad HE 100', 'Cantidad HE FC']
     color_range = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
 
+    # ... (El resto del código para las pestañas permanece exactamente igual) ...
     with tab1:
         if filtered_df.empty:
             st.warning("No hay datos para mostrar con los filtros seleccionados.")
         else:
             with st.container(border=True):
-                with st.spinner("Generando análisis de tendencias... (pausa de 3 seg. para demostración)"):
-                    time.sleep(3) # <--- PAUSA ARTIFICIAL DE 3 SEGUNDOS
+                with st.spinner("Generando análisis de tendencias..."):
                     monthly_trends_agg = calculate_monthly_trends(filtered_df, cost_columns_options, quantity_columns_options, selected_cost_types_display, selected_quantity_types_display)
                     
                     if not monthly_trends_agg.empty:
