@@ -1,18 +1,18 @@
 # ./streamlit/config.toml
 
 [theme]
-# El color principal para botones, sliders, y otros elementos interactivos.
-primaryColor="#f63366"
+# Un azul suave y profesional para los elementos principales.
+primaryColor="#7799ee"
 
-# El color de fondo de toda la aplicación.
-backgroundColor="#22222E"
+# Un fondo gris muy claro para reducir el cansancio visual.
+backgroundColor="#f0f2f6"
 
-# Un color de fondo secundario, usado en la barra lateral, por ejemplo.
-secondaryBackgroundColor="#39394B"
+# Blanco puro para las tarjetas y la barra lateral, creando un contraste limpio.
+secondaryBackgroundColor="#ffffff"
 
-# El color del texto principal.
-textColor="#FFFFFF"
+# Un color de texto oscuro pero no negro puro para mejor legibilidad.
+textColor="#262730"
 
-# El tipo de fuente. Puede ser "sans serif", "serif", o "monospace".
+# El tipo de fuente.
 font="sans serif"
 
