@@ -510,15 +510,13 @@ if uploaded_file is not None:
                     df_grouped_gm_with_total = pd.concat([df_grouped_gm, total_gm], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        base = alt.Chart(df_grouped_gm).encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Gerencia:N', sort='-x', title="Gerencia"), color='Ministerio')
-                        bars = base.mark_bar()
-                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Costos:Q', format=',.0f'))
-                        st.altair_chart((bars + text).properties(title='Costos').interactive(), use_container_width=True)
+                        bars = alt.Chart(df_grouped_gm).mark_bar().encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Gerencia:N', sort=alt.SortField(field="Total_Costos", op="sum", order="descending"), title="Gerencia"), color='Ministerio')
+                        text_total = alt.Chart(df_grouped_gm).transform_aggregate(total_cost='sum(Total_Costos)', groupby=['Gerencia']).mark_text(align='left', baseline='middle', dx=3).encode(x='total_cost:Q', y=alt.Y('Gerencia:N', sort=alt.SortField(field="Total_Costos", op="sum", order="descending")), text=alt.Text('total_cost:Q', format=',.0f'))
+                        st.altair_chart((bars + text_total).properties(title='Costos').interactive(), use_container_width=True)
                     with col2:
-                        base = alt.Chart(df_grouped_gm).encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Gerencia:N', sort='-x', title="Gerencia"), color='Ministerio')
-                        bars = base.mark_bar()
-                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
-                        st.altair_chart((bars + text).properties(title='Cantidades').interactive(), use_container_width=True)
+                        bars = alt.Chart(df_grouped_gm).mark_bar().encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Gerencia:N', sort=alt.SortField(field="Total_Cantidades", op="sum", order="descending"), title="Gerencia"), color='Ministerio')
+                        text_total = alt.Chart(df_grouped_gm).transform_aggregate(total_quant='sum(Total_Cantidades)', groupby=['Gerencia']).mark_text(align='left', baseline='middle', dx=3).encode(x='total_quant:Q', y=alt.Y('Gerencia:N', sort=alt.SortField(field="Total_Cantidades", op="sum", order="descending")), text=alt.Text('total_quant:Q', format=',.0f'))
+                        st.altair_chart((bars + text_total).properties(title='Cantidades').interactive(), use_container_width=True)
                     st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_gm_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_gm_with_total, 'dist_gerencia_ministerio', 'tab2_gm')
             
@@ -531,15 +529,13 @@ if uploaded_file is not None:
                     df_grouped_gs_with_total = pd.concat([df_grouped_gs, total_gs], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        base = alt.Chart(df_grouped_gs).encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Gerencia:N', sort='-x', title="Gerencia"), color='Sexo')
-                        bars = base.mark_bar()
-                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Costos:Q', format=',.0f'))
-                        st.altair_chart((bars + text).properties(title='Costos').interactive(), use_container_width=True)
+                        bars = alt.Chart(df_grouped_gs).mark_bar().encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Gerencia:N', sort=alt.SortField(field="Total_Costos", op="sum", order="descending"), title="Gerencia"), color='Sexo')
+                        text_total = alt.Chart(df_grouped_gs).transform_aggregate(total_cost='sum(Total_Costos)', groupby=['Gerencia']).mark_text(align='left', baseline='middle', dx=3).encode(x='total_cost:Q', y=alt.Y('Gerencia:N', sort=alt.SortField(field="Total_Costos", op="sum", order="descending")), text=alt.Text('total_cost:Q', format=',.0f'))
+                        st.altair_chart((bars + text_total).properties(title='Costos').interactive(), use_container_width=True)
                     with col2:
-                        base = alt.Chart(df_grouped_gs).encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Gerencia:N', sort='-x', title="Gerencia"), color='Sexo')
-                        bars = base.mark_bar()
-                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
-                        st.altair_chart((bars + text).properties(title='Cantidades').interactive(), use_container_width=True)
+                        bars = alt.Chart(df_grouped_gs).mark_bar().encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Gerencia:N', sort=alt.SortField(field="Total_Cantidades", op="sum", order="descending"), title="Gerencia"), color='Sexo')
+                        text_total = alt.Chart(df_grouped_gs).transform_aggregate(total_quant='sum(Total_Cantidades)', groupby=['Gerencia']).mark_text(align='left', baseline='middle', dx=3).encode(x='total_quant:Q', y=alt.Y('Gerencia:N', sort=alt.SortField(field="Total_Cantidades", op="sum", order="descending")), text=alt.Text('total_quant:Q', format=',.0f'))
+                        st.altair_chart((bars + text_total).properties(title='Cantidades').interactive(), use_container_width=True)
                     st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_gs_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_gs_with_total, 'dist_gerencia_sexo', 'tab2_gs')
 
@@ -552,15 +548,13 @@ if uploaded_file is not None:
                     df_grouped_ms_with_total = pd.concat([df_grouped_ms, total_ms], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        base = alt.Chart(df_grouped_ms).encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Ministerio:N', sort='-x', title="Ministerio"), color='Sexo')
-                        bars = base.mark_bar()
-                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Costos:Q', format=',.0f'))
-                        st.altair_chart((bars + text).properties(title='Costos').interactive(), use_container_width=True)
+                        bars = alt.Chart(df_grouped_ms).mark_bar().encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Ministerio:N', sort=alt.SortField(field="Total_Costos", op="sum", order="descending"), title="Ministerio"), color='Sexo')
+                        text_total = alt.Chart(df_grouped_ms).transform_aggregate(total_cost='sum(Total_Costos)', groupby=['Ministerio']).mark_text(align='left', baseline='middle', dx=3).encode(x='total_cost:Q', y=alt.Y('Ministerio:N', sort=alt.SortField(field="Total_Costos", op="sum", order="descending")), text=alt.Text('total_cost:Q', format=',.0f'))
+                        st.altair_chart((bars + text_total).properties(title='Costos').interactive(), use_container_width=True)
                     with col2:
-                        base = alt.Chart(df_grouped_ms).encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Ministerio:N', sort='-x', title="Ministerio"), color='Sexo')
-                        bars = base.mark_bar()
-                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
-                        st.altair_chart((bars + text).properties(title='Cantidades').interactive(), use_container_width=True)
+                        bars = alt.Chart(df_grouped_ms).mark_bar().encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Ministerio:N', sort=alt.SortField(field="Total_Cantidades", op="sum", order="descending"), title="Ministerio"), color='Sexo')
+                        text_total = alt.Chart(df_grouped_ms).transform_aggregate(total_quant='sum(Total_Cantidades)', groupby=['Ministerio']).mark_text(align='left', baseline='middle', dx=3).encode(x='total_quant:Q', y=alt.Y('Ministerio:N', sort=alt.SortField(field="Total_Cantidades", op="sum", order="descending")), text=alt.Text('total_quant:Q', format=',.0f'))
+                        st.altair_chart((bars + text_total).properties(title='Cantidades').interactive(), use_container_width=True)
                     st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_ms_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_ms_with_total, 'dist_ministerio_sexo', 'tab2_ms')
 
@@ -573,15 +567,13 @@ if uploaded_file is not None:
                     df_grouped_ns_with_total = pd.concat([df_grouped_ns, total_ns], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        base = alt.Chart(df_grouped_ns).encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Nivel:N', sort='-x', title="Nivel"), color='Sexo')
-                        bars = base.mark_bar()
-                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Costos:Q', format=',.0f'))
-                        st.altair_chart((bars + text).properties(title='Costos').interactive(), use_container_width=True)
+                        bars = alt.Chart(df_grouped_ns).mark_bar().encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Nivel:N', sort=alt.SortField(field="Total_Costos", op="sum", order="descending"), title="Nivel"), color='Sexo')
+                        text_total = alt.Chart(df_grouped_ns).transform_aggregate(total_cost='sum(Total_Costos)', groupby=['Nivel']).mark_text(align='left', baseline='middle', dx=3).encode(x='total_cost:Q', y=alt.Y('Nivel:N', sort=alt.SortField(field="Total_Costos", op="sum", order="descending")), text=alt.Text('total_cost:Q', format=',.0f'))
+                        st.altair_chart((bars + text_total).properties(title='Costos').interactive(), use_container_width=True)
                     with col2:
-                        base = alt.Chart(df_grouped_ns).encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Nivel:N', sort='-x', title="Nivel"), color='Sexo')
-                        bars = base.mark_bar()
-                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
-                        st.altair_chart((bars + text).properties(title='Cantidades').interactive(), use_container_width=True)
+                        bars = alt.Chart(df_grouped_ns).mark_bar().encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Nivel:N', sort=alt.SortField(field="Total_Cantidades", op="sum", order="descending"), title="Nivel"), color='Sexo')
+                        text_total = alt.Chart(df_grouped_ns).transform_aggregate(total_quant='sum(Total_Cantidades)', groupby=['Nivel']).mark_text(align='left', baseline='middle', dx=3).encode(x='total_quant:Q', y=alt.Y('Nivel:N', sort=alt.SortField(field="Total_Cantidades", op="sum", order="descending")), text=alt.Text('total_quant:Q', format=',.0f'))
+                        st.altair_chart((bars + text_total).properties(title='Cantidades').interactive(), use_container_width=True)
                     st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_ns_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_ns_with_total, 'dist_nivel_sexo', 'tab2_ns')
 
@@ -594,15 +586,13 @@ if uploaded_file is not None:
                     df_grouped_fs_with_total = pd.concat([df_grouped_fs, total_fs], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        base = alt.Chart(df_grouped_fs).encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Función:N', sort='-x', title="Función"), color='Sexo')
-                        bars = base.mark_bar()
-                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Costos:Q', format=',.0f'))
-                        st.altair_chart((bars + text).properties(title='Costos').interactive(), use_container_width=True)
+                        bars = alt.Chart(df_grouped_fs).mark_bar().encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Función:N', sort=alt.SortField(field="Total_Costos", op="sum", order="descending"), title="Función"), color='Sexo')
+                        text_total = alt.Chart(df_grouped_fs).transform_aggregate(total_cost='sum(Total_Costos)', groupby=['Función']).mark_text(align='left', baseline='middle', dx=3).encode(x='total_cost:Q', y=alt.Y('Función:N', sort=alt.SortField(field="Total_Costos", op="sum", order="descending")), text=alt.Text('total_cost:Q', format=',.0f'))
+                        st.altair_chart((bars + text_total).properties(title='Costos').interactive(), use_container_width=True)
                     with col2:
-                        base = alt.Chart(df_grouped_fs).encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Función:N', sort='-x', title="Función"), color='Sexo')
-                        bars = base.mark_bar()
-                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
-                        st.altair_chart((bars + text).properties(title='Cantidades').interactive(), use_container_width=True)
+                        bars = alt.Chart(df_grouped_fs).mark_bar().encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Función:N', sort=alt.SortField(field="Total_Cantidades", op="sum", order="descending"), title="Función"), color='Sexo')
+                        text_total = alt.Chart(df_grouped_fs).transform_aggregate(total_quant='sum(Total_Cantidades)', groupby=['Función']).mark_text(align='left', baseline='middle', dx=3).encode(x='total_quant:Q', y=alt.Y('Función:N', sort=alt.SortField(field="Total_Cantidades", op="sum", order="descending")), text=alt.Text('total_quant:Q', format=',.0f'))
+                        st.altair_chart((bars + text_total).properties(title='Cantidades').interactive(), use_container_width=True)
                     st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_fs_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_fs_with_total, 'dist_funcion_sexo', 'tab2_fs')
 
@@ -624,8 +614,13 @@ if uploaded_file is not None:
                                 y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), 
                                 x=alt.X('Total_Costos:Q', title="Total Costos ($)")
                             )
-                            bars = base.mark_bar()
-                            text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Costos:Q', format='$,.0f'))
+                            bars = base.mark_bar(color='#6C5CE7')
+                            text = base.mark_text(
+                                align='right', 
+                                baseline='middle', 
+                                dx=-5, 
+                                color='white'
+                            ).encode(text=alt.Text('Total_Costos:Q', format='$,.0f'))
                             st.altair_chart((bars + text).properties(title=f'Top {top_n_employees} por Costo').interactive(), use_container_width=True)
                     with col2:
                         st.subheader('Top por Cantidad')
@@ -634,8 +629,13 @@ if uploaded_file is not None:
                                 y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), 
                                 x=alt.X('Total_Cantidades:Q', title="Total Cantidades")
                             )
-                            bars = base.mark_bar()
-                            text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
+                            bars = base.mark_bar(color='#6C5CE7')
+                            text = base.mark_text(
+                                align='right', 
+                                baseline='middle', 
+                                dx=-5, 
+                                color='white'
+                            ).encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
                             st.altair_chart((bars + text).properties(title=f'Top {top_n_employees} por Cantidad').interactive(), use_container_width=True)
                     st.subheader('Tabla de Top Empleados por Costo')
                     st.dataframe(format_st_dataframe(top_costo_empleados), use_container_width=True)
