@@ -416,12 +416,15 @@ if uploaded_file is not None:
                     col1, col2 = st.columns(2)
                     with col1:
                         chart_data = monthly_trends_agg 
+                        max_cost = chart_data['Total_Costos'].max()
+                        y_scale_cost = alt.Scale(domain=[0, max_cost * 1.15]) if max_cost > 0 else alt.Scale()
+                        
                         cost_bars_vars = [cost_columns_options[k] for k in st.session_state.cost_types_ms]
                         monthly_trends_costos_melted_bars = chart_data.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
-                        bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero'), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=cost_color_domain, range=color_range)))
-                        line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)'), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format=',.2f')])
                         
-                        # ETIQUETA DE DATOS para la línea de costos totales
+                        bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero', scale=y_scale_cost), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=cost_color_domain, range=color_range)))
+                        line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)', scale=y_scale_cost), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format=',.2f')])
+                        
                         text_costos = line_costos.mark_text(
                             align='center',
                             baseline='bottom',
@@ -436,12 +439,15 @@ if uploaded_file is not None:
 
                     with col2:
                         chart_data = monthly_trends_agg
+                        max_quant = chart_data['Total_Cantidades'].max()
+                        y_scale_quant = alt.Scale(domain=[0, max_quant * 1.15]) if max_quant > 0 else alt.Scale()
+
                         quantity_bars_vars = [quantity_columns_options[k] for k in st.session_state.quantity_types_ms]
                         monthly_trends_cantidades_melted_bars = chart_data.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
-                        bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Cantidad:Q', stack='zero'), color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=quantity_color_domain, range=color_range)))
-                        line_cantidades = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Cantidades:Q', title='Cantidad'), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')])
                         
-                        # ETIQUETA DE DATOS para la línea de cantidades totales
+                        bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Cantidad:Q', stack='zero', scale=y_scale_quant), color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=quantity_color_domain, range=color_range)))
+                        line_cantidades = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Cantidades:Q', title='Cantidad', scale=y_scale_quant), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')])
+                        
                         text_cantidades = line_cantidades.mark_text(
                             align='center',
                             baseline='bottom',
@@ -460,7 +466,7 @@ if uploaded_file is not None:
 
         with st.container(border=True):
             monthly_trends_agg = calculate_monthly_trends(df, st.session_state.final_selections, cost_columns_options, quantity_columns_options, st.session_state.cost_types_ms, st.session_state.quantity_types_ms)
-            if not monthly_trends_agg.empty:
+            if not monthly_trends_agg.empty and len(monthly_trends_agg) > 1:
                 with st.spinner("Calculando variaciones mensuales..."):
                     monthly_trends_for_var = calculate_monthly_variations(monthly_trends_agg)
                     st.header('Análisis de Variaciones Mensuales')
@@ -472,14 +478,9 @@ if uploaded_file is not None:
                             y=alt.Y('Variacion_Costos_Abs', title='Variación de Costos ($)'), 
                             color=alt.condition(alt.datum.Variacion_Costos_Abs > 0, alt.value('#2ca02c'), alt.value('#d62728'))
                         )
-                        text_var_costos = bars_var_costos.mark_text(
-                            align='center',
-                            dy=alt.condition(alt.datum.Variacion_Costos_Abs > 0, -8, 18) # Posiciona el texto fuera de la barra
-                        ).encode(
-                            text=alt.Text('Variacion_Costos_Abs:Q', format=',.0f'),
-                            color=alt.value('#333') # Color de texto fijo para legibilidad
-                        )
-                        st.altair_chart((bars_var_costos + text_var_costos).interactive(), use_container_width=True)
+                        text_pos_costos = bars_var_costos.mark_text(align='center', baseline='bottom', dy=-4, color='#333').encode(text=alt.Text('Variacion_Costos_Abs:Q', format=',.0f')).transform_filter(alt.datum.Variacion_Costos_Abs >= 0)
+                        text_neg_costos = bars_var_costos.mark_text(align='center', baseline='top', dy=4, color='#333').encode(text=alt.Text('Variacion_Costos_Abs:Q', format=',.0f')).transform_filter(alt.datum.Variacion_Costos_Abs < 0)
+                        st.altair_chart((bars_var_costos + text_pos_costos + text_neg_costos).interactive(), use_container_width=True)
 
                     with col2:
                         base_var_cant = alt.Chart(monthly_trends_for_var).properties(title=alt.TitleParams('Variación Mensual de Cantidades', anchor='middle'))
@@ -488,14 +489,9 @@ if uploaded_file is not None:
                             y=alt.Y('Variacion_Cantidades_Abs', title='Variación de Cantidades'), 
                             color=alt.condition(alt.datum.Variacion_Cantidades_Abs > 0, alt.value('#2ca02c'), alt.value('#d62728'))
                         )
-                        text_var_cant = bars_var_cant.mark_text(
-                            align='center',
-                            dy=alt.condition(alt.datum.Variacion_Cantidades_Abs > 0, -8, 18) # Posiciona el texto fuera de la barra
-                        ).encode(
-                            text=alt.Text('Variacion_Cantidades_Abs:Q', format=',.0f'),
-                            color=alt.value('#333') # Color de texto fijo para legibilidad
-                        )
-                        st.altair_chart((bars_var_cant + text_var_cant).interactive(), use_container_width=True)
+                        text_pos_cant = bars_var_cant.mark_text(align='center', baseline='bottom', dy=-4, color='#333').encode(text=alt.Text('Variacion_Cantidades_Abs:Q', format=',.0f')).transform_filter(alt.datum.Variacion_Cantidades_Abs >= 0)
+                        text_neg_cant = bars_var_cant.mark_text(align='center', baseline='top', dy=4, color='#333').encode(text=alt.Text('Variacion_Cantidades_Abs:Q', format=',.0f')).transform_filter(alt.datum.Variacion_Cantidades_Abs < 0)
+                        st.altair_chart((bars_var_cant + text_pos_cant + text_neg_cant).interactive(), use_container_width=True)
 
                     st.subheader('Tabla de Variaciones Mensuales')
                     df_variaciones = monthly_trends_for_var[['Mes', 'Total_Costos', 'Variacion_Costos_Abs', 'Variacion_Costos_Pct', 'Total_Cantidades', 'Variacion_Cantidades_Abs', 'Variacion_Cantidades_Pct']]
@@ -667,3 +663,4 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados', 'tab4_brutos')
 else:
     st.info("⬆️ Esperando a que se suba un archivo Excel.")
+
