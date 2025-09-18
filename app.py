@@ -420,15 +420,38 @@ if uploaded_file is not None:
                         monthly_trends_costos_melted_bars = chart_data.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
                         bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero'), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=cost_color_domain, range=color_range)))
                         line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)'), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format=',.2f')])
-                        chart_costos_mensual = alt.layer(bars_costos, line_costos).resolve_scale(y='shared').properties(title=alt.TitleParams('Costos Mensuales', anchor='middle')).interactive()
+                        
+                        # ETIQUETA DE DATOS para la línea de costos totales
+                        text_costos = line_costos.mark_text(
+                            align='center',
+                            baseline='bottom',
+                            dy=-10,
+                            color='black'
+                        ).encode(
+                            text=alt.Text('Total_Costos:Q', format=',.0f')
+                        )
+
+                        chart_costos_mensual = alt.layer(bars_costos, line_costos, text_costos).resolve_scale(y='shared').properties(title=alt.TitleParams('Costos Mensuales', anchor='middle')).interactive()
                         st.altair_chart(chart_costos_mensual, use_container_width=True)
+
                     with col2:
                         chart_data = monthly_trends_agg
                         quantity_bars_vars = [quantity_columns_options[k] for k in st.session_state.quantity_types_ms]
                         monthly_trends_cantidades_melted_bars = chart_data.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
                         bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Cantidad:Q', stack='zero'), color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=quantity_color_domain, range=color_range)))
                         line_cantidades = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Cantidades:Q', title='Cantidad'), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')])
-                        chart_cantidades_mensual = alt.layer(bars_cantidades, line_cantidades).resolve_scale(y='shared').properties(title=alt.TitleParams('Cantidades Mensuales', anchor='middle')).interactive()
+                        
+                        # ETIQUETA DE DATOS para la línea de cantidades totales
+                        text_cantidades = line_cantidades.mark_text(
+                            align='center',
+                            baseline='bottom',
+                            dy=-10,
+                            color='black'
+                        ).encode(
+                            text=alt.Text('Total_Cantidades:Q', format=',.0f')
+                        )
+                        
+                        chart_cantidades_mensual = alt.layer(bars_cantidades, line_cantidades, text_cantidades).resolve_scale(y='shared').properties(title=alt.TitleParams('Cantidades Mensuales', anchor='middle')).interactive()
                         st.altair_chart(chart_cantidades_mensual, use_container_width=True)
                     
                     st.subheader('Tabla de Tendencias Mensuales')
@@ -443,11 +466,36 @@ if uploaded_file is not None:
                     st.header('Análisis de Variaciones Mensuales')
                     col1, col2 = st.columns(2)
                     with col1:
-                        chart_var_costos = alt.Chart(monthly_trends_for_var).mark_bar().encode(x=alt.X('Mes'), y=alt.Y('Variacion_Costos_Abs', title='Variación de Costos ($)'), color=alt.condition(alt.datum.Variacion_Costos_Abs > 0, alt.value('green'), alt.value('red'))).properties(title=alt.TitleParams('Variación Mensual de Costos', anchor='middle')).interactive()
-                        st.altair_chart(chart_var_costos, use_container_width=True)
+                        base_var_costos = alt.Chart(monthly_trends_for_var).properties(title=alt.TitleParams('Variación Mensual de Costos', anchor='middle'))
+                        bars_var_costos = base_var_costos.mark_bar().encode(
+                            x=alt.X('Mes'), 
+                            y=alt.Y('Variacion_Costos_Abs', title='Variación de Costos ($)'), 
+                            color=alt.condition(alt.datum.Variacion_Costos_Abs > 0, alt.value('#2ca02c'), alt.value('#d62728'))
+                        )
+                        text_var_costos = bars_var_costos.mark_text(
+                            align='center',
+                            dy=alt.condition(alt.datum.Variacion_Costos_Abs > 0, -8, 18) # Posiciona el texto fuera de la barra
+                        ).encode(
+                            text=alt.Text('Variacion_Costos_Abs:Q', format=',.0f'),
+                            color=alt.value('#333') # Color de texto fijo para legibilidad
+                        )
+                        st.altair_chart((bars_var_costos + text_var_costos).interactive(), use_container_width=True)
+
                     with col2:
-                        chart_var_cantidades = alt.Chart(monthly_trends_for_var).mark_bar().encode(x=alt.X('Mes'), y=alt.Y('Variacion_Cantidades_Abs', title='Variación de Cantidades'), color=alt.condition(alt.datum.Variacion_Cantidades_Abs > 0, alt.value('green'), alt.value('red'))).properties(title=alt.TitleParams('Variación Mensual de Cantidades', anchor='middle')).interactive()
-                        st.altair_chart(chart_var_cantidades, use_container_width=True)
+                        base_var_cant = alt.Chart(monthly_trends_for_var).properties(title=alt.TitleParams('Variación Mensual de Cantidades', anchor='middle'))
+                        bars_var_cant = base_var_cant.mark_bar().encode(
+                            x=alt.X('Mes'), 
+                            y=alt.Y('Variacion_Cantidades_Abs', title='Variación de Cantidades'), 
+                            color=alt.condition(alt.datum.Variacion_Cantidades_Abs > 0, alt.value('#2ca02c'), alt.value('#d62728'))
+                        )
+                        text_var_cant = bars_var_cant.mark_text(
+                            align='center',
+                            dy=alt.condition(alt.datum.Variacion_Cantidades_Abs > 0, -8, 18) # Posiciona el texto fuera de la barra
+                        ).encode(
+                            text=alt.Text('Variacion_Cantidades_Abs:Q', format=',.0f'),
+                            color=alt.value('#333') # Color de texto fijo para legibilidad
+                        )
+                        st.altair_chart((bars_var_cant + text_var_cant).interactive(), use_container_width=True)
 
                     st.subheader('Tabla de Variaciones Mensuales')
                     df_variaciones = monthly_trends_for_var[['Mes', 'Total_Costos', 'Variacion_Costos_Abs', 'Variacion_Costos_Pct', 'Total_Cantidades', 'Variacion_Cantidades_Abs', 'Variacion_Cantidades_Pct']]
@@ -466,9 +514,15 @@ if uploaded_file is not None:
                     df_grouped_gm_with_total = pd.concat([df_grouped_gm, total_gm], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.altair_chart(alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Costos', y=alt.Y('Gerencia:N', sort='-x'), color='Ministerio').properties(title='Costos'), use_container_width=True)
+                        base = alt.Chart(df_grouped_gm).encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Gerencia:N', sort='-x', title="Gerencia"), color='Ministerio')
+                        bars = base.mark_bar()
+                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Costos:Q', format=',.0f'))
+                        st.altair_chart((bars + text).properties(title='Costos').interactive(), use_container_width=True)
                     with col2:
-                        st.altair_chart(alt.Chart(df_grouped_gm).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Gerencia:N', sort='-x'), color='Ministerio').properties(title='Cantidades'), use_container_width=True)
+                        base = alt.Chart(df_grouped_gm).encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Gerencia:N', sort='-x', title="Gerencia"), color='Ministerio')
+                        bars = base.mark_bar()
+                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
+                        st.altair_chart((bars + text).properties(title='Cantidades').interactive(), use_container_width=True)
                     st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_gm_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_gm_with_total, 'dist_gerencia_ministerio', 'tab2_gm')
             
@@ -481,9 +535,15 @@ if uploaded_file is not None:
                     df_grouped_gs_with_total = pd.concat([df_grouped_gs, total_gs], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.altair_chart(alt.Chart(df_grouped_gs).mark_bar().encode(x='Total_Costos', y=alt.Y('Gerencia:N', sort='-x'), color='Sexo').properties(title='Costos'), use_container_width=True)
+                        base = alt.Chart(df_grouped_gs).encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Gerencia:N', sort='-x', title="Gerencia"), color='Sexo')
+                        bars = base.mark_bar()
+                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Costos:Q', format=',.0f'))
+                        st.altair_chart((bars + text).properties(title='Costos').interactive(), use_container_width=True)
                     with col2:
-                        st.altair_chart(alt.Chart(df_grouped_gs).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Gerencia:N', sort='-x'), color='Sexo').properties(title='Cantidades'), use_container_width=True)
+                        base = alt.Chart(df_grouped_gs).encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Gerencia:N', sort='-x', title="Gerencia"), color='Sexo')
+                        bars = base.mark_bar()
+                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
+                        st.altair_chart((bars + text).properties(title='Cantidades').interactive(), use_container_width=True)
                     st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_gs_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_gs_with_total, 'dist_gerencia_sexo', 'tab2_gs')
 
@@ -496,9 +556,15 @@ if uploaded_file is not None:
                     df_grouped_ms_with_total = pd.concat([df_grouped_ms, total_ms], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.altair_chart(alt.Chart(df_grouped_ms).mark_bar().encode(x='Total_Costos', y=alt.Y('Ministerio:N', sort='-x'), color='Sexo').properties(title='Costos'), use_container_width=True)
+                        base = alt.Chart(df_grouped_ms).encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Ministerio:N', sort='-x', title="Ministerio"), color='Sexo')
+                        bars = base.mark_bar()
+                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Costos:Q', format=',.0f'))
+                        st.altair_chart((bars + text).properties(title='Costos').interactive(), use_container_width=True)
                     with col2:
-                        st.altair_chart(alt.Chart(df_grouped_ms).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Ministerio:N', sort='-x'), color='Sexo').properties(title='Cantidades'), use_container_width=True)
+                        base = alt.Chart(df_grouped_ms).encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Ministerio:N', sort='-x', title="Ministerio"), color='Sexo')
+                        bars = base.mark_bar()
+                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
+                        st.altair_chart((bars + text).properties(title='Cantidades').interactive(), use_container_width=True)
                     st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_ms_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_ms_with_total, 'dist_ministerio_sexo', 'tab2_ms')
 
@@ -511,9 +577,15 @@ if uploaded_file is not None:
                     df_grouped_ns_with_total = pd.concat([df_grouped_ns, total_ns], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.altair_chart(alt.Chart(df_grouped_ns).mark_bar().encode(x='Total_Costos', y=alt.Y('Nivel:N', sort='-x'), color='Sexo').properties(title='Costos'), use_container_width=True)
+                        base = alt.Chart(df_grouped_ns).encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Nivel:N', sort='-x', title="Nivel"), color='Sexo')
+                        bars = base.mark_bar()
+                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Costos:Q', format=',.0f'))
+                        st.altair_chart((bars + text).properties(title='Costos').interactive(), use_container_width=True)
                     with col2:
-                        st.altair_chart(alt.Chart(df_grouped_ns).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Nivel:N', sort='-x'), color='Sexo').properties(title='Cantidades'), use_container_width=True)
+                        base = alt.Chart(df_grouped_ns).encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Nivel:N', sort='-x', title="Nivel"), color='Sexo')
+                        bars = base.mark_bar()
+                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
+                        st.altair_chart((bars + text).properties(title='Cantidades').interactive(), use_container_width=True)
                     st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_ns_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_ns_with_total, 'dist_nivel_sexo', 'tab2_ns')
 
@@ -526,9 +598,15 @@ if uploaded_file is not None:
                     df_grouped_fs_with_total = pd.concat([df_grouped_fs, total_fs], ignore_index=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.altair_chart(alt.Chart(df_grouped_fs).mark_bar().encode(x='Total_Costos', y=alt.Y('Función:N', sort='-x'), color='Sexo').properties(title='Costos'), use_container_width=True)
+                        base = alt.Chart(df_grouped_fs).encode(x=alt.X('Total_Costos:Q', title="Total Costos ($)"), y=alt.Y('Función:N', sort='-x', title="Función"), color='Sexo')
+                        bars = base.mark_bar()
+                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Costos:Q', format=',.0f'))
+                        st.altair_chart((bars + text).properties(title='Costos').interactive(), use_container_width=True)
                     with col2:
-                        st.altair_chart(alt.Chart(df_grouped_fs).mark_bar().encode(x='Total_Cantidades', y=alt.Y('Función:N', sort='-x'), color='Sexo').properties(title='Cantidades'), use_container_width=True)
+                        base = alt.Chart(df_grouped_fs).encode(x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), y=alt.Y('Función:N', sort='-x', title="Función"), color='Sexo')
+                        bars = base.mark_bar()
+                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
+                        st.altair_chart((bars + text).properties(title='Cantidades').interactive(), use_container_width=True)
                     st.subheader('Tabla de Distribución'); st.dataframe(format_st_dataframe(df_grouped_fs_with_total), use_container_width=True)
                     generate_download_buttons(df_grouped_fs_with_total, 'dist_funcion_sexo', 'tab2_fs')
 
@@ -546,11 +624,23 @@ if uploaded_file is not None:
                     with col1:
                         st.subheader('Top por Costo')
                         if not top_costo_empleados.empty:
-                            st.altair_chart(alt.Chart(top_costo_empleados).mark_bar().encode(y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), x='Total_Costos:Q').properties(title=f'Top {top_n_employees} por Costo'), use_container_width=True)
+                            base = alt.Chart(top_costo_empleados).encode(
+                                y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), 
+                                x=alt.X('Total_Costos:Q', title="Total Costos ($)")
+                            )
+                            bars = base.mark_bar()
+                            text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Costos:Q', format='$,.0f'))
+                            st.altair_chart((bars + text).properties(title=f'Top {top_n_employees} por Costo').interactive(), use_container_width=True)
                     with col2:
                         st.subheader('Top por Cantidad')
                         if not top_cantidad_empleados.empty:
-                            st.altair_chart(alt.Chart(top_cantidad_empleados).mark_bar().encode(y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), x='Total_Cantidades:Q').properties(title=f'Top {top_n_employees} por Cantidad'), use_container_width=True)
+                            base = alt.Chart(top_cantidad_empleados).encode(
+                                y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), 
+                                x=alt.X('Total_Cantidades:Q', title="Total Cantidades")
+                            )
+                            bars = base.mark_bar()
+                            text = base.mark_text(align='left', baseline='middle', dx=3).encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
+                            st.altair_chart((bars + text).properties(title=f'Top {top_n_employees} por Cantidad').interactive(), use_container_width=True)
                     st.subheader('Tabla de Top Empleados por Costo')
                     st.dataframe(format_st_dataframe(top_costo_empleados), use_container_width=True)
                     generate_download_buttons(top_costo_empleados, f'top_{top_n_employees}_costo', 'tab3_costo')
