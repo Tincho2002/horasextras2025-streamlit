@@ -412,13 +412,8 @@ if uploaded_file is not None:
     # --- Resumen del Último Mes ---
     if not filtered_df.empty and 'Mes' in filtered_df.columns:
         try:
-            import locale
             from datetime import datetime
-            try:
-                locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
-            except locale.Error:
-                locale.setlocale(locale.LC_TIME, 'es')
-
+            
             latest_month_str = filtered_df['Mes'].dropna().max()
             
             if pd.notna(latest_month_str):
@@ -438,7 +433,15 @@ if uploaded_file is not None:
 
                 with st.container(border=True):
                     month_dt = datetime.strptime(latest_month_str, '%Y-%m')
-                    month_name = month_dt.strftime('%B %Y').upper()
+                    
+                    # Manual Spanish month translation
+                    meses_espanol = {
+                        1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL",
+                        5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO",
+                        9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE"
+                    }
+                    month_name = f"{meses_espanol.get(month_dt.month, '')} {month_dt.year}"
+
                     st.markdown(f"<h4 style='text-align: center; color: var(--primary-color);'>RESUMEN MENSUAL: {month_name}</h4>", unsafe_allow_html=True)
                     
                     col1, col2, col3, col4 = st.columns(4)
