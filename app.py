@@ -272,10 +272,10 @@ def load_and_clean_data(url):
     """Carga y limpia los datos desde una URL de un archivo Excel."""
     df_excel = pd.DataFrame()
     try:
-        df_excel = pd.read_excel(url, sheet_name='Datos', dtype={'Legajo': str, 'CECO': str, 'Nivel': str})
+        df_excel = pd.read_excel(url, sheet_name='Datos', dtype={'Legajo': str, 'CECO': str, 'Nivel': str}, engine='openpyxl')
     except Exception:
         try:
-            df_excel = pd.read_excel(url, dtype={'Legajo': str, 'CECO': str, 'Nivel': str})
+            df_excel = pd.read_excel(url, dtype={'Legajo': str, 'CECO': str, 'Nivel': str}, engine='openpyxl')
         except Exception as e_no_sheet:
             st.error(f"ERROR CRÍTICO: No se pudo leer el archivo Excel desde la URL. Mensaje: {e_no_sheet}")
             return pd.DataFrame()
@@ -320,8 +320,8 @@ def load_and_clean_data(url):
 
 # --- INICIO DE LA APLICACIÓN ---
 
-# ¡IMPORTANTE! Reemplaza esta URL con la URL "raw" de tu propio archivo Excel en GitHub.
-EXCEL_URL = 'https://github.com/Tincho2002/horasextras2025-streamlit/blob/main/HE_2025.xlsx'
+# URL "raw" del archivo Excel en GitHub.
+EXCEL_URL = 'https://raw.githubusercontent.com/Tinchoo2002/horasextras2025-streamlit/main/HE_2025.xlsx'
 
 with st.spinner('Cargando datos desde GitHub...'):
     df = load_and_clean_data(EXCEL_URL)
@@ -372,7 +372,7 @@ def get_sorted_unique_options(dataframe, column_name):
             return sorted(unique_values)
     return []
 
-# --- LÓGICA DE FILTROS PRINCIPALES ---
+# --- LÓGICA DE FILTROS PRINCIPAIS ---
 temp_selections = st.session_state.final_selections.copy()
 for col in filter_cols_cascade:
     df_options = df.copy()
