@@ -132,6 +132,22 @@ div[data-testid="stDownloadButton"] button:hover {
     border-bottom: 3px solid var(--primary-color);
 }
 
+/* --- KPI Metrics Card --- */
+[data-testid="stMetric"] {
+    background-color: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+}
+[data-testid="stMetricLabel"] {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+[data-testid="stMetricValue"] {
+    font-size: 1.75rem;
+    color: var(--primary-color);
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -392,6 +408,55 @@ if uploaded_file is not None:
         st.rerun()
 
     st.info(f"Mostrando **{len(filtered_df)}** registros según los filtros aplicados.")
+
+    # --- Resumen del Último Mes ---
+    if not filtered_df.empty and 'Mes' in filtered_df.columns:
+        try:
+            import locale
+            from datetime import datetime
+            try:
+                locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+            except locale.Error:
+                locale.setlocale(locale.LC_TIME, 'es')
+
+            latest_month_str = filtered_df['Mes'].dropna().max()
+            
+            if pd.notna(latest_month_str):
+                df_last_month = filtered_df[filtered_df['Mes'] == latest_month_str].copy()
+
+                costo_50 = df_last_month.get('Horas extras al 50 %', pd.Series(0)).sum()
+                cantidad_50 = df_last_month.get('Cantidad HE 50', pd.Series(0)).sum()
+
+                costo_50_sab = df_last_month.get('Horas extras al 50 % Sabados', pd.Series(0)).sum()
+                cantidad_50_sab = df_last_month.get('Cant HE al 50 Sabados', pd.Series(0)).sum()
+
+                costo_100 = df_last_month.get('Horas extras al 100%', pd.Series(0)).sum()
+                cantidad_100 = df_last_month.get('Cantidad HE 100', pd.Series(0)).sum()
+
+                costo_fc = df_last_month.get('Importe HE Fc', pd.Series(0)).sum()
+                cantidad_fc = df_last_month.get('Cantidad HE FC', pd.Series(0)).sum()
+
+                with st.container(border=True):
+                    month_dt = datetime.strptime(latest_month_str, '%Y-%m')
+                    month_name = month_dt.strftime('%B %Y').upper()
+                    st.markdown(f"<h4 style='text-align: center; color: var(--primary-color);'>RESUMEN MENSUAL: {month_name}</h4>", unsafe_allow_html=True)
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Costo HE 50%", f"${costo_50:,.0f}", help="Suma del costo de horas extras al 50%")
+                        st.metric("Cant. HE 50%", f"{cantidad_50:,.0f} hs", help="Suma de la cantidad de horas extras al 50%")
+                    with col2:
+                        st.metric("Costo HE 50% Sáb.", f"${costo_50_sab:,.0f}", help="Suma del costo de horas extras al 50% en sábados")
+                        st.metric("Cant. HE 50% Sáb.", f"{cantidad_50_sab:,.0f} hs", help="Suma de la cantidad de horas extras al 50% en sábados")
+                    with col3:
+                        st.metric("Costo HE 100%", f"${costo_100:,.0f}", help="Suma del costo de horas extras al 100%")
+                        st.metric("Cant. HE 100%", f"{cantidad_100:,.0f} hs", help="Suma de la cantidad de horas extras al 100%")
+                    with col4:
+                        st.metric("Costo HE FC", f"${costo_fc:,.0f}", help="Suma del costo de horas extras de francos compensatorios")
+                        st.metric("Cant. HE FC", f"{cantidad_fc:,.0f} hs", help="Suma de la cantidad de horas extras de francos compensatorios")
+                st.markdown("<br>", unsafe_allow_html=True)
+        except Exception as e:
+            st.warning(f"No se pudo generar el resumen del último mes. Error: {e}")
     
     # --- PESTAÑAS (Tabs) ---
     tab1, tab2, tab3, tab_valor_hora, tab4 = st.tabs(["📈 Resumen y Tendencias", "🏢 Desglose Organizacional", "👤 Empleados Destacados", "⚖️ Valor Hora", "📋 Datos Brutos"])
