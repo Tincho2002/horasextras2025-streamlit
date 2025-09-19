@@ -321,7 +321,7 @@ def load_and_clean_data(url):
 # --- INICIO DE LA APLICACIÓN ---
 
 # URL "raw" del archivo Excel en GitHub.
-EXCEL_URL = 'https://raw.githubusercontent.com/Tinchoo2002/horasextras2025-streamlit/main/HE_2025.xlsx'
+EXCEL_URL = 'https://raw.githubusercontent.com/Tincho2002/horasextras2025-streamlit/main/HE_2025.xlsx'
 
 with st.spinner('Cargando datos desde GitHub...'):
     df = load_and_clean_data(EXCEL_URL)
