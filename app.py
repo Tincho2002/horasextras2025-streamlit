@@ -358,6 +358,7 @@ def get_sorted_unique_options(dataframe, column_name):
         except (ValueError, TypeError):
             return sorted(unique_values)
     return []
+
 temp_selections = st.session_state.final_selections.copy()
 for col in filter_cols_cascade:
     df_options = df.copy()
@@ -365,12 +366,25 @@ for col in filter_cols_cascade:
         if other_col != col and temp_selections.get(other_col):
             df_options = df_options[df_options[other_col].isin(temp_selections[other_col])]
     options = get_sorted_unique_options(df_options, col)
+    
+    # --- INICIO DE CORRECCIÓN DE FILTROS ---
+    if col == 'Nivel':
+        # 1. Eliminar 'no disponible' de las opciones de Nivel
+        options = [opt for opt in options if opt != 'no disponible']
+    
+    if col == 'Sexo':
+        # 2. Asegurar que el filtro Sexo solo muestre las opciones deseadas
+        allowed_sexo_options = ['Masculino', 'Femenino']
+        options = [opt for opt in options if opt in allowed_sexo_options]
+    # --- FIN DE CORRECCIÓN DE FILTROS ---
+
     default_selection = [s for s in temp_selections.get(col, []) if s in options]
     if st.session_state.cargar_todo_clicked:
         default_selection = options
     selection = st.sidebar.multiselect(f'Selecciona {col}(s):', options, default=default_selection, key=f"ms_{col}")
     temp_selections[col] = selection
 st.session_state.final_selections = temp_selections
+
 filtered_df = apply_filters(df, st.session_state.final_selections)
 top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
 st.sidebar.markdown("---")
