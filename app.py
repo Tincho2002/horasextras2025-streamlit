@@ -389,7 +389,7 @@ if st.session_state.cargar_todo_clicked:
     st.rerun()
 st.info(f"Mostrando **{format_number_es(len(filtered_df), 0)}** registros según los filtros aplicados.")
 
-# --- INICIO DE LA SECCIÓN MODIFICADA: TARJETA DE RESUMEN ANIMADA ---
+# --- INICIO DE LA SECCIÓN MODIFICADA: TARJETA DE RESUMEN ANIMADA (v2) ---
 if not filtered_df.empty and 'Mes' in filtered_df.columns:
     try:
         latest_month_str = filtered_df['Mes'].dropna().max()
@@ -414,21 +414,22 @@ if not filtered_df.empty and 'Mes' in filtered_df.columns:
             card_html = f"""
             <style>
                 .summary-card {{
-                    background-color: var(--secondary-background-color);
+                    background-color: #f8f7fc;
                     border-radius: 8px;
                     box-shadow: 0 4px 10px rgba(0,0,0,0.05);
                     padding: 1.5rem;
-                    font-family: var(--font);
-                    color: var(--text-color);
+                    /* 1. FUENTE: Usamos el stack de fuentes directamente */
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 }}
                 .summary-header {{
                     text-align: center;
                     font-size: 1.2rem;
                     font-weight: 600;
-                    color: var(--primary-color);
                     margin-bottom: 1.5rem;
                     border-bottom: 2px solid #e0e0e0;
                     padding-bottom: 1rem;
+                    /* 3. COLOR: Usamos el color lavanda directamente */
+                    color: #6C5CE7;
                 }}
                 .summary-totals {{
                     display: flex;
@@ -442,7 +443,7 @@ if not filtered_df.empty and 'Mes' in filtered_df.columns:
                 .summary-main-kpi .value {{
                     font-size: 2.5rem;
                     font-weight: 700;
-                    color: var(--primary-color);
+                    color: #6C5CE7;
                 }}
                 .summary-main-kpi .label {{
                     font-size: 1rem;
@@ -477,55 +478,68 @@ if not filtered_df.empty and 'Mes' in filtered_df.columns:
                 <div class="summary-header">RESUMEN MENSUAL: {month_name}</div>
                 <div class="summary-totals">
                     <div class="summary-main-kpi">
-                        <div class="value" data-target="{total_costo_mes}" data-prefix="$">0</div>
+                        <div class="value" data-target="{total_costo_mes}" data-prefix="$" data-decimals="2">0</div>
                         <div class="label">Costo Total</div>
                     </div>
                     <div class="summary-main-kpi">
-                        <div class="value" data-target="{total_cantidad_mes}" data-suffix=" hs">0</div>
+                        <div class="value" data-target="{total_cantidad_mes}" data-suffix=" hs" data-decimals="0">0</div>
                         <div class="label">Cantidad Total</div>
                     </div>
                 </div>
                 <div class="summary-breakdown">
                     <div class="summary-sub-kpi">
                         <div class="type">HE 50%</div>
-                        <div class="value-cost" data-target="{costo_50}" data-prefix="$">0</div>
-                        <div class="value-qty" data-target="{cantidad_50}" data-suffix=" hs">0</div>
+                        <div class="value-cost" data-target="{costo_50}" data-prefix="$" data-decimals="2">0</div>
+                        <div class="value-qty" data-target="{cantidad_50}" data-suffix=" hs" data-decimals="0">0</div>
                     </div>
                     <div class="summary-sub-kpi">
                         <div class="type">HE 50% Sábados</div>
-                        <div class="value-cost" data-target="{costo_50_sab}" data-prefix="$">0</div>
-                        <div class="value-qty" data-target="{cantidad_50_sab}" data-suffix=" hs">0</div>
+                        <div class="value-cost" data-target="{costo_50_sab}" data-prefix="$" data-decimals="2">0</div>
+                        <div class="value-qty" data-target="{cantidad_50_sab}" data-suffix=" hs" data-decimals="0">0</div>
                     </div>
                     <div class="summary-sub-kpi">
                         <div class="type">HE 100%</div>
-                        <div class="value-cost" data-target="{costo_100}" data-prefix="$">0</div>
-                        <div class="value-qty" data-target="{cantidad_100}" data-suffix=" hs">0</div>
+                        <div class="value-cost" data-target="{costo_100}" data-prefix="$" data-decimals="2">0</div>
+                        <div class="value-qty" data-target="{cantidad_100}" data-suffix=" hs" data-decimals="0">0</div>
                     </div>
                     <div class="summary-sub-kpi">
                         <div class="type">HE FC</div>
-                        <div class="value-cost" data-target="{costo_fc}" data-prefix="$">0</div>
-                        <div class="value-qty" data-target="{cantidad_fc}" data-suffix=" hs">0</div>
+                        <div class="value-cost" data-target="{costo_fc}" data-prefix="$" data-decimals="2">0</div>
+                        <div class="value-qty" data-target="{cantidad_fc}" data-suffix=" hs" data-decimals="0">0</div>
                     </div>
                 </div>
             </div>
 
             <script>
+                // 2. DECIMALES: Nueva función para formatear números en JS
+                function formatNumberES(num, decimals) {{
+                    const num_str = parseFloat(num).toFixed(decimals);
+                    let [integerPart, decimalPart] = num_str.split('.');
+                    integerPart = integerPart.replace(/\\B(?=(\\d{{3}})+(?!\\d))/g, ".");
+                    return decimalPart ? integerPart + ',' + decimalPart : integerPart;
+                }}
+
                 function animateValue(obj, start, end, duration) {{
                     let startTimestamp = null;
                     const prefix = obj.getAttribute('data-prefix') || '';
                     const suffix = obj.getAttribute('data-suffix') || '';
+                    const decimals = parseInt(obj.getAttribute('data-decimals')) || 0;
+                    
                     const step = (timestamp) => {{
                         if (!startTimestamp) startTimestamp = timestamp;
                         const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                        const currentVal = Math.floor(progress * (end - start) + start);
-                        let formattedVal = currentVal.toString().replace(/\\B(?=(\\d{{3}})+(?!\\d))/g, ".");
+                        const currentVal = progress * (end - start) + start;
+                        
+                        let formattedVal = formatNumberES(currentVal, decimals);
                         obj.innerHTML = prefix + formattedVal + suffix;
+                        
                         if (progress < 1) {{
                             window.requestAnimationFrame(step);
                         }}
                     }};
                     window.requestAnimationFrame(step);
                 }}
+
                 const counters = document.querySelectorAll('[data-target]');
                 counters.forEach(counter => {{
                     const target = +counter.getAttribute('data-target');
