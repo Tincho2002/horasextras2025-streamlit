@@ -4,6 +4,7 @@ import altair as alt
 import io
 import numpy as np
 from datetime import datetime
+import streamlit.components.v1 as components
 
 # --- Configuración de la página ---
 st.set_page_config(layout="wide")
@@ -388,6 +389,7 @@ if st.session_state.cargar_todo_clicked:
     st.rerun()
 st.info(f"Mostrando **{format_number_es(len(filtered_df), 0)}** registros según los filtros aplicados.")
 
+# --- INICIO DE LA SECCIÓN MODIFICADA: TARJETA DE RESUMEN ANIMADA ---
 if not filtered_df.empty and 'Mes' in filtered_df.columns:
     try:
         latest_month_str = filtered_df['Mes'].dropna().max()
@@ -401,27 +403,143 @@ if not filtered_df.empty and 'Mes' in filtered_df.columns:
             cantidad_100 = df_last_month.get('Cantidad HE 100', pd.Series(0)).sum()
             costo_fc = df_last_month.get('Importe HE Fc', pd.Series(0)).sum()
             cantidad_fc = df_last_month.get('Cantidad HE FC', pd.Series(0)).sum()
-            with st.container(border=True):
-                month_dt = datetime.strptime(latest_month_str, '%Y-%m')
-                meses_espanol = {1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL", 5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO", 9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE"}
-                month_name = f"{meses_espanol.get(month_dt.month, '')} {month_dt.year}"
-                st.markdown(f"<h4 style='text-align: center; color: var(--primary-color);'>RESUMEN MENSUAL: {month_name}</h4>", unsafe_allow_html=True)
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("Costo HE 50%", f"${format_number_es(costo_50, 2)}", help="Suma del costo de horas extras al 50%")
-                    st.metric("Cant. HE 50%", f"{format_number_es(cantidad_50, 0)} hs", help="Suma de la cantidad de horas extras al 50%")
-                with col2:
-                    st.metric("Costo HE 50% Sáb.", f"${format_number_es(costo_50_sab, 2)}", help="Suma del costo de horas extras al 50% en sábados")
-                    st.metric("Cant. HE 50% Sáb.", f"{format_number_es(cantidad_50_sab, 0)} hs", help="Suma de la cantidad de horas extras al 50% en sábados")
-                with col3:
-                    st.metric("Costo HE 100%", f"${format_number_es(costo_100, 2)}", help="Suma del costo de horas extras al 100%")
-                    st.metric("Cant. HE 100%", f"{format_number_es(cantidad_100, 0)} hs", help="Suma de la cantidad de horas extras al 100%")
-                with col4:
-                    st.metric("Costo HE FC", f"${format_number_es(costo_fc, 2)}", help="Suma del costo de horas extras de francos compensatorios")
-                    st.metric("Cant. HE FC", f"{format_number_es(cantidad_fc, 0)} hs", help="Suma de la cantidad de horas extras de francos compensatorios")
+
+            total_costo_mes = costo_50 + costo_50_sab + costo_100 + costo_fc
+            total_cantidad_mes = cantidad_50 + cantidad_50_sab + cantidad_100 + cantidad_fc
+
+            month_dt = datetime.strptime(latest_month_str, '%Y-%m')
+            meses_espanol = {1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL", 5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO", 9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE"}
+            month_name = f"{meses_espanol.get(month_dt.month, '')} {month_dt.year}"
+            
+            card_html = f"""
+            <style>
+                .summary-card {{
+                    background-color: var(--secondary-background-color);
+                    border-radius: 8px;
+                    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+                    padding: 1.5rem;
+                    font-family: var(--font);
+                    color: var(--text-color);
+                }}
+                .summary-header {{
+                    text-align: center;
+                    font-size: 1.2rem;
+                    font-weight: 600;
+                    color: var(--primary-color);
+                    margin-bottom: 1.5rem;
+                    border-bottom: 2px solid #e0e0e0;
+                    padding-bottom: 1rem;
+                }}
+                .summary-totals {{
+                    display: flex;
+                    justify-content: space-around;
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                }}
+                .summary-main-kpi {{
+                    text-align: center;
+                }}
+                .summary-main-kpi .value {{
+                    font-size: 2.5rem;
+                    font-weight: 700;
+                    color: var(--primary-color);
+                }}
+                .summary-main-kpi .label {{
+                    font-size: 1rem;
+                    color: #5a5a5a;
+                }}
+                .summary-breakdown {{
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                    gap: 1rem;
+                }}
+                .summary-sub-kpi {{
+                    background-color: #ffffff;
+                    padding: 1rem;
+                    border-radius: 6px;
+                    border: 1px solid #e0e0e0;
+                    text-align: center;
+                }}
+                .summary-sub-kpi .type {{
+                    font-weight: 600;
+                    font-size: 0.9rem;
+                    margin-bottom: 0.5rem;
+                }}
+                .summary-sub-kpi .value-cost, .summary-sub-kpi .value-qty {{
+                    font-size: 1.25rem;
+                    font-weight: 600;
+                }}
+                .summary-sub-kpi .value-cost {{ color: #2a7a2a; }}
+                .summary-sub-kpi .value-qty {{ color: #3a3a9a; }}
+            </style>
+            
+            <div class="summary-card">
+                <div class="summary-header">RESUMEN MENSUAL: {month_name}</div>
+                <div class="summary-totals">
+                    <div class="summary-main-kpi">
+                        <div class="value" data-target="{total_costo_mes}" data-prefix="$">0</div>
+                        <div class="label">Costo Total</div>
+                    </div>
+                    <div class="summary-main-kpi">
+                        <div class="value" data-target="{total_cantidad_mes}" data-suffix=" hs">0</div>
+                        <div class="label">Cantidad Total</div>
+                    </div>
+                </div>
+                <div class="summary-breakdown">
+                    <div class="summary-sub-kpi">
+                        <div class="type">HE 50%</div>
+                        <div class="value-cost" data-target="{costo_50}" data-prefix="$">0</div>
+                        <div class="value-qty" data-target="{cantidad_50}" data-suffix=" hs">0</div>
+                    </div>
+                    <div class="summary-sub-kpi">
+                        <div class="type">HE 50% Sábados</div>
+                        <div class="value-cost" data-target="{costo_50_sab}" data-prefix="$">0</div>
+                        <div class="value-qty" data-target="{cantidad_50_sab}" data-suffix=" hs">0</div>
+                    </div>
+                    <div class="summary-sub-kpi">
+                        <div class="type">HE 100%</div>
+                        <div class="value-cost" data-target="{costo_100}" data-prefix="$">0</div>
+                        <div class="value-qty" data-target="{cantidad_100}" data-suffix=" hs">0</div>
+                    </div>
+                    <div class="summary-sub-kpi">
+                        <div class="type">HE FC</div>
+                        <div class="value-cost" data-target="{costo_fc}" data-prefix="$">0</div>
+                        <div class="value-qty" data-target="{cantidad_fc}" data-suffix=" hs">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                function animateValue(obj, start, end, duration) {{
+                    let startTimestamp = null;
+                    const prefix = obj.getAttribute('data-prefix') || '';
+                    const suffix = obj.getAttribute('data-suffix') || '';
+                    const step = (timestamp) => {{
+                        if (!startTimestamp) startTimestamp = timestamp;
+                        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                        const currentVal = Math.floor(progress * (end - start) + start);
+                        let formattedVal = currentVal.toString().replace(/\\B(?=(\\d{{3}})+(?!\\d))/g, ".");
+                        obj.innerHTML = prefix + formattedVal + suffix;
+                        if (progress < 1) {{
+                            window.requestAnimationFrame(step);
+                        }}
+                    }};
+                    window.requestAnimationFrame(step);
+                }}
+                const counters = document.querySelectorAll('[data-target]');
+                counters.forEach(counter => {{
+                    const target = +counter.getAttribute('data-target');
+                    setTimeout(() => animateValue(counter, 0, target, 1500), 100);
+                }});
+            </script>
+            """
+            components.html(card_html, height=420)
             st.markdown("<br>", unsafe_allow_html=True)
+
     except Exception as e:
         st.warning(f"No se pudo generar el resumen del último mes. Error: {e}")
+# --- FIN DE LA SECCIÓN MODIFICADA ---
+
 
 tab1, tab2, tab3, tab_valor_hora, tab4 = st.tabs(["📈 Resumen y Tendencias", "🏢 Desglose Organizacional", "👤 Empleados Destacados", "⚖️ Valor Hora", "📋 Datos Brutos"])
 
@@ -563,4 +681,3 @@ with tab4:
         st.header('Tabla de Datos Brutos Filtrados')
         st.dataframe(filtered_df.style.format(create_format_dict(filtered_df)), use_container_width=True)
         generate_download_buttons(filtered_df, 'datos_brutos_filtrados', 'tab4_brutos')
-
