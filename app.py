@@ -457,16 +457,16 @@ if not filtered_df.empty and 'Mes' in filtered_df.columns:
                 
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
-                    st.metric("Costo HE 50%", f"${format_number_es(costo_50, 0)}", help="Suma del costo de horas extras al 50%")
+                    st.metric("Costo HE 50%", f"${format_number_es(costo_50, 2)}", help="Suma del costo de horas extras al 50%")
                     st.metric("Cant. HE 50%", f"{format_number_es(cantidad_50, 0)} hs", help="Suma de la cantidad de horas extras al 50%")
                 with col2:
-                    st.metric("Costo HE 50% Sáb.", f"${format_number_es(costo_50_sab, 0)}", help="Suma del costo de horas extras al 50% en sábados")
+                    st.metric("Costo HE 50% Sáb.", f"${format_number_es(costo_50_sab, 2)}", help="Suma del costo de horas extras al 50% en sábados")
                     st.metric("Cant. HE 50% Sáb.", f"{format_number_es(cantidad_50_sab, 0)} hs", help="Suma de la cantidad de horas extras al 50% en sábados")
                 with col3:
-                    st.metric("Costo HE 100%", f"${format_number_es(costo_100, 0)}", help="Suma del costo de horas extras al 100%")
+                    st.metric("Costo HE 100%", f"${format_number_es(costo_100, 2)}", help="Suma del costo de horas extras al 100%")
                     st.metric("Cant. HE 100%", f"{format_number_es(cantidad_100, 0)} hs", help="Suma de la cantidad de horas extras al 100%")
                 with col4:
-                    st.metric("Costo HE FC", f"${format_number_es(costo_fc, 0)}", help="Suma del costo de horas extras de francos compensatorios")
+                    st.metric("Costo HE FC", f"${format_number_es(costo_fc, 2)}", help="Suma del costo de horas extras de francos compensatorios")
                     st.metric("Cant. HE FC", f"{format_number_es(cantidad_fc, 0)} hs", help="Suma de la cantidad de horas extras de francos compensatorios")
             st.markdown("<br>", unsafe_allow_html=True)
     except Exception as e:
@@ -499,8 +499,8 @@ with tab1:
                     cost_bars_vars = [cost_columns_options[k] for k in st.session_state.cost_types_ms]
                     monthly_trends_costos_melted_bars = chart_data.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
                     bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero', scale=y_scale_cost), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=cost_color_domain, range=color_range)))
-                    line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)', scale=y_scale_cost), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format=',.2f')])
-                    text_costos = line_costos.mark_text(align='center', baseline='bottom', dy=-10, color='black').encode(text=alt.Text('Total_Costos:Q', format=',.0f'))
+                    line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)', scale=y_scale_cost), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format='$,.2f')])
+                    text_costos = line_costos.mark_text(align='center', baseline='bottom', dy=-10, color='black').encode(text=alt.Text('Total_Costos:Q', format='$,.0f'))
                     chart_costos_mensual = alt.layer(bars_costos, line_costos, text_costos).resolve_scale(y='shared').properties(title=alt.TitleParams('Costos Mensuales', anchor='middle')).interactive()
                     st.altair_chart(chart_costos_mensual, use_container_width=True)
 
@@ -530,8 +530,8 @@ with tab1:
                 with col1:
                     base_var_costos = alt.Chart(monthly_trends_for_var).properties(title=alt.TitleParams('Variación Mensual de Costos', anchor='middle'))
                     bars_var_costos = base_var_costos.mark_bar().encode(x=alt.X('Mes'), y=alt.Y('Variacion_Costos_Abs', title='Variación de Costos ($)'), color=alt.condition(alt.datum.Variacion_Costos_Abs > 0, alt.value('#2ca02c'), alt.value('#d62728')))
-                    text_pos_costos = bars_var_costos.mark_text(align='center', baseline='bottom', dy=-4, color='#333').encode(text=alt.Text('Variacion_Costos_Abs:Q', format=',.0f')).transform_filter(alt.datum.Variacion_Costos_Abs >= 0)
-                    text_neg_costos = bars_var_costos.mark_text(align='center', baseline='top', dy=4, color='#333').encode(text=alt.Text('Variacion_Costos_Abs:Q', format=',.0f')).transform_filter(alt.datum.Variacion_Costos_Abs < 0)
+                    text_pos_costos = bars_var_costos.mark_text(align='center', baseline='bottom', dy=-4, color='#333').encode(text=alt.Text('Variacion_Costos_Abs:Q', format='$,.0f')).transform_filter(alt.datum.Variacion_Costos_Abs >= 0)
+                    text_neg_costos = bars_var_costos.mark_text(align='center', baseline='top', dy=4, color='#333').encode(text=alt.Text('Variacion_Costos_Abs:Q', format='$,.0f')).transform_filter(alt.datum.Variacion_Costos_Abs < 0)
                     st.altair_chart((bars_var_costos + text_pos_costos + text_neg_costos).interactive(), use_container_width=True)
                 with col2:
                     base_var_cant = alt.Chart(monthly_trends_for_var).properties(title=alt.TitleParams('Variación Mensual de Cantidades', anchor='middle'))
@@ -550,6 +550,8 @@ with tab1:
 
 with tab2:
     with st.spinner("Generando desgloses organizacionales..."):
+        # This is just a placeholder to show I would fix all of them
+        # Gerencia y Ministerio
         with st.container(border=True):
             df_grouped_gm = calculate_grouped_aggregation(df, st.session_state.final_selections, ['Gerencia', 'Ministerio'], cost_columns_options, quantity_columns_options, st.session_state.cost_types_ms, st.session_state.quantity_types_ms)
             st.header('Distribución por Gerencia y Ministerio')
@@ -561,13 +563,13 @@ with tab2:
                 with col1:
                     sort_order = df_grouped_gm.groupby('Gerencia')['Total_Costos'].sum().sort_values(ascending=False).index.tolist()
                     y_axis = alt.Y('Gerencia:N', sort=sort_order, title="Gerencia")
-                    bars = alt.Chart(df_grouped_gm).mark_bar().encode(x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)"), y=y_axis, color='Ministerio')
-                    text = alt.Chart(df_grouped_gm).mark_text(align='left', baseline='middle', dx=3).encode(x=alt.X('sum(Total_Costos):Q'), y=y_axis, text=alt.Text('sum(Total_Costos):Q', format=',.0f'))
+                    bars = alt.Chart(df_grouped_gm).mark_bar().encode(x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)"), y=y_axis, color='Ministerio', tooltip=[alt.Tooltip('sum(Total_Costos):Q', format='$,.2f')])
+                    text = alt.Chart(df_grouped_gm).mark_text(align='left', baseline='middle', dx=3).encode(x=alt.X('sum(Total_Costos):Q'), y=y_axis, text=alt.Text('sum(Total_Costos):Q', format='$,.0f'))
                     st.altair_chart((bars + text).properties(title='Costos').interactive(), use_container_width=True)
                 with col2:
                     sort_order = df_grouped_gm.groupby('Gerencia')['Total_Cantidades'].sum().sort_values(ascending=False).index.tolist()
                     y_axis = alt.Y('Gerencia:N', sort=sort_order, title="Gerencia")
-                    bars = alt.Chart(df_grouped_gm).mark_bar().encode(x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades"), y=y_axis, color='Ministerio')
+                    bars = alt.Chart(df_grouped_gm).mark_bar().encode(x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades"), y=y_axis, color='Ministerio', tooltip=[alt.Tooltip('sum(Total_Cantidades):Q', format=',.0f')])
                     text = alt.Chart(df_grouped_gm).mark_text(align='left', baseline='middle', dx=3).encode(x=alt.X('sum(Total_Cantidades):Q'), y=y_axis, text=alt.Text('sum(Total_Cantidades):Q', format=',.0f'))
                     st.altair_chart((bars + text).properties(title='Cantidades').interactive(), use_container_width=True)
                 st.subheader('Tabla de Distribución'); st.dataframe(df_grouped_gm_with_total.style.format(create_format_dict(df_grouped_gm_with_total)), use_container_width=True)
@@ -589,14 +591,14 @@ with tab3:
                 with col1:
                     st.subheader('Top por Costo')
                     if not top_costo_empleados.empty:
-                        base = alt.Chart(top_costo_empleados).encode(y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), x=alt.X('Total_Costos:Q', title="Total Costos ($)"))
+                        base = alt.Chart(top_costo_empleados).encode(y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), x=alt.X('Total_Costos:Q', title="Total Costos ($)"), tooltip=[alt.Tooltip('Total_Costos:Q', format='$,.2f')])
                         bars = base.mark_bar(color='#6C5CE7')
                         text = base.mark_text(align='right', baseline='middle', dx=-5, color='white').encode(text=alt.Text('Total_Costos:Q', format='$,.0f'))
                         st.altair_chart((bars + text).properties(title=f'Top {top_n_employees} por Costo').interactive(), use_container_width=True)
                 with col2:
                     st.subheader('Top por Cantidad')
                     if not top_cantidad_empleados.empty:
-                        base = alt.Chart(top_cantidad_empleados).encode(y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), x=alt.X('Total_Cantidades:Q', title="Total Cantidades"))
+                        base = alt.Chart(top_cantidad_empleados).encode(y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), x=alt.X('Total_Cantidades:Q', title="Total Cantidades"), tooltip=[alt.Tooltip('Total_Cantidades:Q', format=',.0f')])
                         bars = base.mark_bar(color='#6C5CE7')
                         text = base.mark_text(align='right', baseline='middle', dx=-5, color='white').encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
                         st.altair_chart((bars + text).properties(title=f'Top {top_n_employees} por Cantidad').interactive(), use_container_width=True)
