@@ -156,14 +156,12 @@ div[data-testid="stDownloadButton"] button:hover {
 
 
 # --- INICIO CORRECCIÓN: Funciones y configuración de formato ---
-# 1. Definimos el formato de números para español.
 custom_format_locale = {
     "decimal": ",",
     "thousands": ".",
     "grouping": [3],
     "currency": ["$", ""]
 }
-# 2. (Opcional pero bueno mantenerlo) Se establece la configuración global.
 alt.renderers.set_embed_options(formatLocale=custom_format_locale)
 
 def format_number_es(num, decimals=2):
@@ -368,16 +366,12 @@ for col in filter_cols_cascade:
             df_options = df_options[df_options[other_col].isin(temp_selections[other_col])]
     options = get_sorted_unique_options(df_options, col)
     
-    # --- INICIO DE CORRECCIÓN DE FILTROS ---
     if col == 'Nivel':
-        # 1. Eliminar 'no disponible' de las opciones de Nivel
         options = [opt for opt in options if opt != 'no disponible']
     
     if col == 'Sexo':
-        # 2. Asegurar que el filtro Sexo solo muestre las opciones deseadas
         allowed_sexo_options = ['Masculino', 'Femenino']
         options = [opt for opt in options if opt in allowed_sexo_options]
-    # --- FIN DE CORRECCIÓN DE FILTROS ---
 
     default_selection = [s for s in temp_selections.get(col, []) if s in options]
     if st.session_state.cargar_todo_clicked:
@@ -529,7 +523,6 @@ if not filtered_df.empty and 'Mes' in filtered_df.columns:
             </div>
 
             <script>
-                // 2. DECIMALES: Script de animación robusto con formato internacional
                 function animateValue(obj, start, end, duration) {{
                     let startTimestamp = null;
                     const type = obj.getAttribute('data-type') || 'number';
@@ -555,7 +548,6 @@ if not filtered_df.empty and 'Mes' in filtered_df.columns:
                         
                         let formattedVal;
                         if (type === 'currency') {{
-                            // El formateador ya incluye el '$', asi que lo quitamos para no duplicar
                             formattedVal = currencyFormatter.format(currentVal).replace(/^ARS\\s/, '$');
                         }} else {{
                             formattedVal = numberFormatter.format(currentVal);
@@ -572,7 +564,6 @@ if not filtered_df.empty and 'Mes' in filtered_df.columns:
 
                 const counters = document.querySelectorAll('[data-target]');
                 counters.forEach(counter => {{
-                    // Limpiamos el contenido inicial para que no se vea un 0 antes de la animación
                     counter.innerHTML = ''; 
                     const target = +counter.getAttribute('data-target');
                     setTimeout(() => animateValue(counter, 0, target, 1500), 100);
@@ -610,11 +601,7 @@ with tab1:
                     line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)', scale=y_scale_cost, axis=alt.Axis(format='$,.0f')), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format='$,.2f')])
                     text_costos = line_costos.mark_text(align='center', baseline='bottom', dy=-10, color='black').encode(text=alt.Text('Total_Costos:Q', format='$,.0f'))
                     
-                    chart_costos_final = alt.layer(bars_costos, line_costos, text_costos).resolve_scale(y='shared').properties(
-                        title=alt.TitleParams('Costos Mensuales', anchor='middle'),
-                        embed_options={'formatLocale': custom_format_locale}
-                    ).interactive()
-                    st.altair_chart(chart_costos_final, use_container_width=True)
+                    st.altair_chart(alt.layer(bars_costos, line_costos, text_costos).resolve_scale(y='shared').properties(title=alt.TitleParams('Costos Mensuales', anchor='middle')).interactive(), use_container_width=True)
 
                 with col2:
                     chart_data, max_quant = monthly_trends_agg, monthly_trends_agg['Total_Cantidades'].max()
@@ -625,11 +612,7 @@ with tab1:
                     line_cantidades = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Cantidades:Q', title='Cantidad', scale=y_scale_quant, axis=alt.Axis(format=',.0f')), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')])
                     text_cantidades = line_cantidades.mark_text(align='center', baseline='bottom', dy=-10, color='black').encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
                     
-                    chart_cantidades_final = alt.layer(bars_cantidades, line_cantidades, text_cantidades).resolve_scale(y='shared').properties(
-                        title=alt.TitleParams('Cantidades Mensuales', anchor='middle'),
-                        embed_options={'formatLocale': custom_format_locale}
-                    ).interactive()
-                    st.altair_chart(chart_cantidades_final, use_container_width=True)
+                    st.altair_chart(alt.layer(bars_cantidades, line_cantidades, text_cantidades).resolve_scale(y='shared').properties(title=alt.TitleParams('Cantidades Mensuales', anchor='middle')).interactive(), use_container_width=True)
 
                 st.subheader('Tabla de Tendencias Mensuales')
                 st.dataframe(monthly_trends_agg_with_total.style.format(create_format_dict(monthly_trends_agg_with_total)), use_container_width=True)
@@ -646,22 +629,14 @@ with tab1:
                     bars_var_costos = base_var_costos.mark_bar().encode(x=alt.X('Mes'), y=alt.Y('Variacion_Costos_Abs', title='Variación de Costos ($)', axis=alt.Axis(format='$,.0f')), color=alt.condition(alt.datum.Variacion_Costos_Abs > 0, alt.value('#2ca02c'), alt.value('#d62728')))
                     text_pos_costos = bars_var_costos.mark_text(align='center', baseline='bottom', dy=-4, color='#333').encode(text=alt.Text('Variacion_Costos_Abs:Q', format='$,.0f')).transform_filter(alt.datum.Variacion_Costos_Abs >= 0)
                     text_neg_costos = bars_var_costos.mark_text(align='center', baseline='top', dy=4, color='#333').encode(text=alt.Text('Variacion_Costos_Abs:Q', format='$,.0f')).transform_filter(alt.datum.Variacion_Costos_Abs < 0)
-
-                    chart_var_costos = (bars_var_costos + text_pos_costos + text_neg_costos).properties(
-                        embed_options={'formatLocale': custom_format_locale}
-                    ).interactive()
-                    st.altair_chart(chart_var_costos, use_container_width=True)
+                    st.altair_chart((bars_var_costos + text_pos_costos + text_neg_costos).interactive(), use_container_width=True)
 
                 with col2:
                     base_var_cant = alt.Chart(monthly_trends_for_var).properties(title=alt.TitleParams('Variación Mensual de Cantidades', anchor='middle'))
                     bars_var_cant = base_var_cant.mark_bar().encode(x=alt.X('Mes'), y=alt.Y('Variacion_Cantidades_Abs', title='Variación de Cantidades', axis=alt.Axis(format=',.0f')), color=alt.condition(alt.datum.Variacion_Cantidades_Abs > 0, alt.value('#2ca02c'), alt.value('#d62728')))
                     text_pos_cant = bars_var_cant.mark_text(align='center', baseline='bottom', dy=-4, color='#333').encode(text=alt.Text('Variacion_Cantidades_Abs:Q', format=',.0f')).transform_filter(alt.datum.Variacion_Cantidades_Abs >= 0)
                     text_neg_cant = bars_var_cant.mark_text(align='center', baseline='top', dy=4, color='#333').encode(text=alt.Text('Variacion_Cantidades_Abs:Q', format=',.0f')).transform_filter(alt.datum.Variacion_Cantidades_Abs < 0)
-
-                    chart_var_cant = (bars_var_cant + text_pos_cant + text_neg_cant).properties(
-                        embed_options={'formatLocale': custom_format_locale}
-                    ).interactive()
-                    st.altair_chart(chart_var_cant, use_container_width=True)
+                    st.altair_chart((bars_var_cant + text_pos_cant + text_neg_cant).interactive(), use_container_width=True)
                     
                 st.subheader('Tabla de Variaciones Mensuales')
                 df_variaciones = monthly_trends_for_var[['Mes', 'Total_Costos', 'Variacion_Costos_Abs', 'Variacion_Costos_Pct', 'Total_Cantidades', 'Variacion_Cantidades_Abs', 'Variacion_Cantidades_Pct']]
@@ -692,24 +667,14 @@ with tab2:
                     y_axis = alt.Y(f'{primary_col}:N', sort=sort_order, title=primary_col)
                     bars = alt.Chart(df_grouped).mark_bar().encode(x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)", axis=alt.Axis(format='$,.0f')), y=y_axis, color=f'{secondary_col}:N', tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Costos):Q', format='$,.2f', title='Costo')])
                     total_labels = alt.Chart(df_grouped).transform_aggregate(total='sum(Total_Costos)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(x='total:Q', y=y_axis, text=alt.Text('total:Q', format='$,.0f'))
-
-                    chart_costos_grouped = alt.layer(bars, total_labels).properties(
-                        title='Costos',
-                        embed_options={'formatLocale': custom_format_locale}
-                    ).interactive()
-                    st.altair_chart(chart_costos_grouped, use_container_width=True)
+                    st.altair_chart(alt.layer(bars, total_labels).properties(title='Costos').interactive(), use_container_width=True)
 
                 with col2:
                     sort_order = df_grouped.groupby(primary_col)['Total_Cantidades'].sum().sort_values(ascending=False).index.tolist()
                     y_axis = alt.Y(f'{primary_col}:N', sort=sort_order, title=primary_col)
                     bars = alt.Chart(df_grouped).mark_bar().encode(x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades", axis=alt.Axis(format=',.0f')), y=y_axis, color=f'{secondary_col}:N', tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Cantidades):Q', format=',.0f', title='Cantidad')])
                     total_labels = alt.Chart(df_grouped).transform_aggregate(total='sum(Total_Cantidades)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(x='total:Q', y=y_axis, text=alt.Text('total:Q', format=',.0f'))
-
-                    chart_cant_grouped = alt.layer(bars, total_labels).properties(
-                        title='Cantidades',
-                        embed_options={'formatLocale': custom_format_locale}
-                    ).interactive()
-                    st.altair_chart(chart_cant_grouped, use_container_width=True)
+                    st.altair_chart(alt.layer(bars, total_labels).properties(title='Cantidades').interactive(), use_container_width=True)
 
                 st.subheader('Tabla de Distribución')
                 st.dataframe(df_grouped_with_total.style.format(create_format_dict(df_grouped_with_total)), use_container_width=True)
@@ -729,25 +694,14 @@ with tab3:
                         base = alt.Chart(top_costo_empleados).encode(y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), x=alt.X('Total_Costos:Q', title="Total Costos ($)", axis=alt.Axis(format='$,.0f')), tooltip=[alt.Tooltip('Total_Costos:Q', format='$,.2f')])
                         bars = base.mark_bar(color='#6C5CE7')
                         text = base.mark_text(align='right', baseline='middle', dx=-5, color='white').encode(text=alt.Text('Total_Costos:Q', format='$,.0f'))
-
-                        chart_top_costo = (bars + text).properties(
-                            title=f'Top {top_n_employees} por Costo',
-                            embed_options={'formatLocale': custom_format_locale}
-                        ).interactive()
-                        st.altair_chart(chart_top_costo, use_container_width=True)
+                        st.altair_chart((bars + text).properties(title=f'Top {top_n_employees} por Costo').interactive(), use_container_width=True)
                 with col2:
                     st.subheader('Top por Cantidad')
                     if not top_cantidad_empleados.empty:
                         base = alt.Chart(top_cantidad_empleados).encode(y=alt.Y('Apellido y nombre:N', sort='-x', title='Empleado'), x=alt.X('Total_Cantidades:Q', title="Total Cantidades", axis=alt.Axis(format=',.0f')), tooltip=[alt.Tooltip('Total_Cantidades:Q', format=',.0f')])
                         bars = base.mark_bar(color='#6C5CE7')
                         text = base.mark_text(align='right', baseline='middle', dx=-5, color='white').encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
-
-                        chart_top_cant = (bars + text).properties(
-                            title=f'Top {top_n_employees} por Cantidad',
-                            embed_options={'formatLocale': custom_format_locale}
-                        ).interactive()
-                        st.altair_chart(chart_top_cant, use_container_width=True)
-
+                        st.altair_chart((bars + text).properties(title=f'Top {top_n_employees} por Cantidad').interactive(), use_container_width=True)
                 st.subheader('Tabla de Top Empleados por Costo')
                 st.dataframe(top_costo_empleados.style.format(create_format_dict(top_costo_empleados)), use_container_width=True)
                 generate_download_buttons(top_costo_empleados, f'top_{top_n_employees}_costo', 'tab3_costo')
