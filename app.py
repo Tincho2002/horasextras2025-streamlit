@@ -576,7 +576,7 @@ if uploaded_file is not None:
                     col1, col2 = st.columns(2)
                     with col1:
                         chart_data, max_cost = monthly_trends_agg, monthly_trends_agg['Total_Costos'].max()
-                        y_scale_cost = alt.Scale(domain=[0, max_cost * 1.15]) if max_cost > 0 else alt.Scale()
+                        y_scale_cost = alt.Scale(domain=[0, max_cost * 1.25]) if max_cost > 0 else alt.Scale()
                         cost_bars_vars = [cost_columns_options[k] for k in cost_types_selection]
                         monthly_trends_costos_melted_bars = chart_data.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
                         bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero', scale=y_scale_cost, axis=alt.Axis(format='$,.0f')), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=cost_color_domain, range=color_range)))
@@ -587,7 +587,7 @@ if uploaded_file is not None:
 
                     with col2:
                         chart_data, max_quant = monthly_trends_agg, monthly_trends_agg['Total_Cantidades'].max()
-                        y_scale_quant = alt.Scale(domain=[0, max_quant * 1.15]) if max_quant > 0 else alt.Scale()
+                        y_scale_quant = alt.Scale(domain=[0, max_quant * 1.25]) if max_quant > 0 else alt.Scale()
                         quantity_bars_vars = [quantity_columns_options[k] for k in quantity_types_selection]
                         monthly_trends_cantidades_melted_bars = chart_data.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
                         bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Cantidad:Q', stack='zero', scale=y_scale_quant, axis=alt.Axis(format=',.0f')), color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=quantity_color_domain, range=color_range)))
@@ -608,15 +608,27 @@ if uploaded_file is not None:
                     st.markdown("<br>", unsafe_allow_html=True)
                     col1, col2 = st.columns(2)
                     with col1:
+                        min_var_cost = monthly_trends_for_var['Variacion_Costos_Abs'].min()
+                        max_var_cost = monthly_trends_for_var['Variacion_Costos_Abs'].max()
+                        padding_cost = (max_var_cost - min_var_cost) * 0.15
+                        domain_cost = [min_var_cost - padding_cost, max_var_cost + padding_cost]
+                        scale_var_cost = alt.Scale(domain=domain_cost)
+
                         base_var_costos = alt.Chart(monthly_trends_for_var).properties(title=alt.TitleParams('Variación Mensual de Costos', anchor='middle'))
-                        bars_var_costos = base_var_costos.mark_bar().encode(x=alt.X('Mes'), y=alt.Y('Variacion_Costos_Abs', title='Variación de Costos ($)', axis=alt.Axis(format='$,.0f')), color=alt.condition(alt.datum.Variacion_Costos_Abs > 0, alt.value('#2ca02c'), alt.value('#d62728')))
+                        bars_var_costos = base_var_costos.mark_bar().encode(x=alt.X('Mes'), y=alt.Y('Variacion_Costos_Abs', title='Variación de Costos ($)', axis=alt.Axis(format='$,.0f'), scale=scale_var_cost), color=alt.condition(alt.datum.Variacion_Costos_Abs > 0, alt.value('#2ca02c'), alt.value('#d62728')))
                         text_pos_costos = bars_var_costos.mark_text(align='center', baseline='bottom', dy=-4, color='#333').encode(text=alt.Text('Variacion_Costos_Abs:Q', format='$,.0f')).transform_filter(alt.datum.Variacion_Costos_Abs >= 0)
                         text_neg_costos = bars_var_costos.mark_text(align='center', baseline='top', dy=4, color='#333').encode(text=alt.Text('Variacion_Costos_Abs:Q', format='$,.0f')).transform_filter(alt.datum.Variacion_Costos_Abs < 0)
                         st.altair_chart((bars_var_costos + text_pos_costos + text_neg_costos).interactive(), use_container_width=True)
 
                     with col2:
+                        min_var_quant = monthly_trends_for_var['Variacion_Cantidades_Abs'].min()
+                        max_var_quant = monthly_trends_for_var['Variacion_Cantidades_Abs'].max()
+                        padding_quant = (max_var_quant - min_var_quant) * 0.15
+                        domain_quant = [min_var_quant - padding_quant, max_var_quant + padding_quant]
+                        scale_var_quant = alt.Scale(domain=domain_quant)
+
                         base_var_cant = alt.Chart(monthly_trends_for_var).properties(title=alt.TitleParams('Variación Mensual de Cantidades', anchor='middle'))
-                        bars_var_cant = base_var_cant.mark_bar().encode(x=alt.X('Mes'), y=alt.Y('Variacion_Cantidades_Abs', title='Variación de Cantidades', axis=alt.Axis(format=',.0f')), color=alt.condition(alt.datum.Variacion_Cantidades_Abs > 0, alt.value('#2ca02c'), alt.value('#d62728')))
+                        bars_var_cant = base_var_cant.mark_bar().encode(x=alt.X('Mes'), y=alt.Y('Variacion_Cantidades_Abs', title='Variación de Cantidades', axis=alt.Axis(format=',.0f'), scale=scale_var_quant), color=alt.condition(alt.datum.Variacion_Cantidades_Abs > 0, alt.value('#2ca02c'), alt.value('#d62728')))
                         text_pos_cant = bars_var_cant.mark_text(align='center', baseline='bottom', dy=-4, color='#333').encode(text=alt.Text('Variacion_Cantidades_Abs:Q', format=',.0f')).transform_filter(alt.datum.Variacion_Cantidades_Abs >= 0)
                         text_neg_cant = bars_var_cant.mark_text(align='center', baseline='top', dy=4, color='#333').encode(text=alt.Text('Variacion_Cantidades_Abs:Q', format=',.0f')).transform_filter(alt.datum.Variacion_Cantidades_Abs < 0)
                         st.altair_chart((bars_var_cant + text_pos_cant + text_neg_cant).interactive(), use_container_width=True)
@@ -664,7 +676,7 @@ if uploaded_file is not None:
                             x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)", axis=alt.Axis(format='$,.0f')),
                             y=y_axis,
                             color=alt.Color(f'{secondary_col}:N', 
-                                            legend=alt.Legend(orient="bottom", title=secondary_col, columns=5, labelLimit=0),
+                                            legend=alt.Legend(orient="bottom", title=secondary_col, columns=4, labelLimit=0),
                                             scale=color_scale),
                             tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Costos):Q', format='$,.2f', title='Costo')]
                         )
@@ -683,7 +695,7 @@ if uploaded_file is not None:
                             x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades", axis=alt.Axis(format=',.0f')),
                             y=y_axis,
                             color=alt.Color(f'{secondary_col}:N', 
-                                            legend=alt.Legend(orient="bottom", title=secondary_col, columns=5, labelLimit=0),
+                                            legend=alt.Legend(orient="bottom", title=secondary_col, columns=4, labelLimit=0),
                                             scale=color_scale),
                             tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Cantidades):Q', format=',.0f', title='Cantidad')]
                         )
