@@ -352,20 +352,15 @@ if uploaded_file is not None:
     if col2.button('📥 Cargar Todo', use_container_width=True):
         for col in filter_cols:
             all_options = sorted(df[col].dropna().unique().tolist())
-            if col == 'Nivel':
-                st.session_state.selections[col] = [opt for opt in all_options if opt != 'no disponible']
-            elif col == 'Sexo':
-                st.session_state.selections[col] = [opt for opt in all_options if opt in ['Masculino', 'Femenino']]
-            else:
-                st.session_state.selections[col] = all_options
+            st.session_state.selections[col] = [opt for opt in all_options if opt != 'no disponible']
         st.rerun()
     
     st.sidebar.markdown("---")
 
     for col in filter_cols:
         options = sorted(df[col].dropna().unique().tolist())
-        if col == 'Nivel': options = [opt for opt in options if opt != 'no disponible']
-        if col == 'Sexo': options = [opt for opt in options if opt in ['Masculino', 'Femenino']]
+        # Excluir 'no disponible' de la lista de opciones para todos los filtros.
+        options = [opt for opt in options if opt != 'no disponible']
         
         st.session_state.selections[col] = st.sidebar.multiselect(
             f'Selecciona {col}(s):', 
@@ -638,8 +633,17 @@ if uploaded_file is not None:
         primary_col, secondary_col = group_cols[0], group_cols[1]
         with st.spinner(f"Generando desglose por {selected_dimension_key}..."):
             df_grouped = calculate_grouped_aggregation(df, st.session_state.selections, group_cols, cost_columns_options, quantity_columns_options, cost_types_selection, quantity_types_selection)
+            
+            # --- INICIO CORRECCIÓN GRÁFICOS ---
+            # Filtrar "no disponible" de los datos del gráfico para evitar que aparezca en los ejes y leyendas
+            df_grouped_chart = df_grouped[
+                (df_grouped[primary_col] != 'no disponible') & 
+                (df_grouped[secondary_col] != 'no disponible')
+            ].copy()
+            # --- FIN CORRECCIÓN GRÁFICOS ---
+            
             st.subheader(f'Distribución por {selected_dimension_key}')
-            if df_grouped.empty:
+            if df_grouped_chart.empty:
                 st.warning(f"No hay datos para '{selected_dimension_key}' con los filtros seleccionados.")
             else:
                 with st.container(border=True):
@@ -647,16 +651,16 @@ if uploaded_file is not None:
                     total_row[primary_col], total_row[secondary_col] = 'TOTAL', ''
                     df_grouped_with_total = pd.concat([df_grouped, total_row], ignore_index=True)
                     
-                    secondary_domain = df_grouped[secondary_col].unique().tolist()
+                    secondary_domain = df_grouped_chart[secondary_col].unique().tolist()
                     palette = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
                     color_scale = alt.Scale(domain=secondary_domain, range=palette[:len(secondary_domain)])
                     
                     col1, col2 = st.columns(2)
                     with col1:
-                        sort_order = df_grouped.groupby(primary_col)['Total_Costos'].sum().sort_values(ascending=False).index.tolist()
+                        sort_order = df_grouped_chart.groupby(primary_col)['Total_Costos'].sum().sort_values(ascending=False).index.tolist()
                         y_axis = alt.Y(f'{primary_col}:N', sort=sort_order, title=primary_col)
                         
-                        bars = alt.Chart(df_grouped).mark_bar().encode(
+                        bars = alt.Chart(df_grouped_chart).mark_bar().encode(
                             x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)", axis=alt.Axis(format='$,.0f')),
                             y=y_axis,
                             color=alt.Color(f'{secondary_col}:N', 
@@ -664,7 +668,7 @@ if uploaded_file is not None:
                                             scale=color_scale),
                             tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Costos):Q', format='$,.2f', title='Costo')]
                         )
-                        total_labels = alt.Chart(df_grouped).transform_aggregate(total='sum(Total_Costos)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(
+                        total_labels = alt.Chart(df_grouped_chart).transform_aggregate(total='sum(Total_Costos)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(
                             x='total:Q',
                             y=y_axis,
                             text=alt.Text('total:Q', format='$,.0f')
@@ -672,10 +676,10 @@ if uploaded_file is not None:
                         st.altair_chart(alt.layer(bars, total_labels).properties(title='Costos').interactive(), use_container_width=True)
 
                     with col2:
-                        sort_order = df_grouped.groupby(primary_col)['Total_Cantidades'].sum().sort_values(ascending=False).index.tolist()
+                        sort_order = df_grouped_chart.groupby(primary_col)['Total_Cantidades'].sum().sort_values(ascending=False).index.tolist()
                         y_axis = alt.Y(f'{primary_col}:N', sort=sort_order, title=primary_col)
 
-                        bars = alt.Chart(df_grouped).mark_bar().encode(
+                        bars = alt.Chart(df_grouped_chart).mark_bar().encode(
                             x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades", axis=alt.Axis(format=',.0f')),
                             y=y_axis,
                             color=alt.Color(f'{secondary_col}:N', 
@@ -683,7 +687,7 @@ if uploaded_file is not None:
                                             scale=color_scale),
                             tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Cantidades):Q', format=',.0f', title='Cantidad')]
                         )
-                        total_labels = alt.Chart(df_grouped).transform_aggregate(total='sum(Total_Cantidades)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(
+                        total_labels = alt.Chart(df_grouped_chart).transform_aggregate(total='sum(Total_Cantidades)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(
                             x='total:Q',
                             y=y_axis,
                             text=alt.Text('total:Q', format=',.0f')
@@ -742,3 +746,4 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados', 'tab4_brutos')
 else:
     st.info("Por favor, cargue un archivo Excel para comenzar el análisis.")
+
