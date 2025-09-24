@@ -666,22 +666,21 @@ if uploaded_file is not None:
                     df_grouped_with_total = pd.concat([df_grouped, total_row], ignore_index=True)
                     
                     # --- INICIO DE LA CORRECCIÓN DEFINITIVA ---
-                    # Obtener el dominio (categorías únicas) para la columna secundaria a partir de los datos filtrados y agrupados
                     secondary_domain = df_grouped[secondary_col].unique().tolist()
+                    palette = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+                    color_scale = alt.Scale(domain=secondary_domain, range=palette[:len(secondary_domain)])
                     
                     col1, col2 = st.columns(2)
                     with col1:
                         sort_order = df_grouped.groupby(primary_col)['Total_Costos'].sum().sort_values(ascending=False).index.tolist()
                         y_axis = alt.Y(f'{primary_col}:N', sort=sort_order, title=primary_col)
                         
-                        color_scale = alt.Scale(domain=secondary_domain) # Crear una escala de color con el dominio correcto
-                        
                         bars = alt.Chart(df_grouped).mark_bar().encode(
                             x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)", axis=alt.Axis(format='$,.0f')),
                             y=y_axis,
                             color=alt.Color(f'{secondary_col}:N', 
                                             legend=alt.Legend(orient="bottom", title=secondary_col),
-                                            scale=color_scale), # Aplicar la escala de color
+                                            scale=color_scale),
                             tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Costos):Q', format='$,.2f', title='Costo')]
                         )
                         total_labels = alt.Chart(df_grouped).transform_aggregate(total='sum(Total_Costos)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(
@@ -695,13 +694,12 @@ if uploaded_file is not None:
                         sort_order = df_grouped.groupby(primary_col)['Total_Cantidades'].sum().sort_values(ascending=False).index.tolist()
                         y_axis = alt.Y(f'{primary_col}:N', sort=sort_order, title=primary_col)
 
-                        # Reutilizar la misma escala de color para consistencia
                         bars = alt.Chart(df_grouped).mark_bar().encode(
                             x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades", axis=alt.Axis(format=',.0f')),
                             y=y_axis,
                             color=alt.Color(f'{secondary_col}:N', 
                                             legend=alt.Legend(orient="bottom", title=secondary_col),
-                                            scale=color_scale), # Aplicar la misma escala de color
+                                            scale=color_scale),
                             tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Cantidades):Q', format=',.0f', title='Cantidad')]
                         )
                         total_labels = alt.Chart(df_grouped).transform_aggregate(total='sum(Total_Cantidades)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(
