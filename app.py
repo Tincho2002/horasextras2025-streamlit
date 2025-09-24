@@ -635,7 +635,6 @@ if uploaded_file is not None:
             df_grouped = calculate_grouped_aggregation(df, st.session_state.selections, group_cols, cost_columns_options, quantity_columns_options, cost_types_selection, quantity_types_selection)
             
             # --- INICIO CORRECCIÓN GRÁFICOS ---
-            # Filtrar "no disponible" de los datos del gráfico para evitar que aparezca en los ejes y leyendas
             df_grouped_chart = df_grouped[
                 (df_grouped[primary_col] != 'no disponible') & 
                 (df_grouped[secondary_col] != 'no disponible')
@@ -664,7 +663,7 @@ if uploaded_file is not None:
                             x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)", axis=alt.Axis(format='$,.0f')),
                             y=y_axis,
                             color=alt.Color(f'{secondary_col}:N', 
-                                            legend=alt.Legend(orient="bottom", title=secondary_col),
+                                            legend=alt.Legend(orient="bottom", title=secondary_col, columns=4, labelLimit=0),
                                             scale=color_scale),
                             tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Costos):Q', format='$,.2f', title='Costo')]
                         )
@@ -683,7 +682,7 @@ if uploaded_file is not None:
                             x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades", axis=alt.Axis(format=',.0f')),
                             y=y_axis,
                             color=alt.Color(f'{secondary_col}:N', 
-                                            legend=alt.Legend(orient="bottom", title=secondary_col),
+                                            legend=alt.Legend(orient="bottom", title=secondary_col, columns=4, labelLimit=0),
                                             scale=color_scale),
                             tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Cantidades):Q', format=',.0f', title='Cantidad')]
                         )
