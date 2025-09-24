@@ -605,6 +605,7 @@ if uploaded_file is not None:
                 with st.spinner("Calculando variaciones mensuales..."):
                     monthly_trends_for_var = calculate_monthly_variations(monthly_trends_agg)
                     st.header('Análisis de Variaciones Mensuales')
+                    st.markdown("<br>", unsafe_allow_html=True)
                     col1, col2 = st.columns(2)
                     with col1:
                         base_var_costos = alt.Chart(monthly_trends_for_var).properties(title=alt.TitleParams('Variación Mensual de Costos', anchor='middle'))
@@ -663,7 +664,7 @@ if uploaded_file is not None:
                             x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)", axis=alt.Axis(format='$,.0f')),
                             y=y_axis,
                             color=alt.Color(f'{secondary_col}:N', 
-                                            legend=alt.Legend(orient="bottom", title=secondary_col, columns=4, labelLimit=0),
+                                            legend=alt.Legend(orient="bottom", title=secondary_col, columns=5, labelLimit=0),
                                             scale=color_scale),
                             tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Costos):Q', format='$,.2f', title='Costo')]
                         )
@@ -682,7 +683,7 @@ if uploaded_file is not None:
                             x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades", axis=alt.Axis(format=',.0f')),
                             y=y_axis,
                             color=alt.Color(f'{secondary_col}:N', 
-                                            legend=alt.Legend(orient="bottom", title=secondary_col, columns=4, labelLimit=0),
+                                            legend=alt.Legend(orient="bottom", title=secondary_col, columns=5, labelLimit=0),
                                             scale=color_scale),
                             tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Cantidades):Q', format=',.0f', title='Cantidad')]
                         )
