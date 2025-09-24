@@ -562,13 +562,15 @@ if uploaded_file is not None:
 
     with tab1:
         with st.container(border=True):
+            st.header('Tendencias Mensuales de Horas Extras')
+            st.markdown("<br>", unsafe_allow_html=True)
             with st.spinner("Generando análisis de tendencias..."):
                 monthly_trends_agg = calculate_monthly_trends(df, st.session_state.selections, cost_columns_options, quantity_columns_options, cost_types_selection, quantity_types_selection)
                 if not monthly_trends_agg.empty:
                     total_row = monthly_trends_agg.sum(numeric_only=True).to_frame().T
                     total_row['Mes'] = 'TOTAL'
                     monthly_trends_agg_with_total = pd.concat([monthly_trends_agg, total_row], ignore_index=True)
-                    st.header('Tendencias Mensuales de Horas Extras')
+                    
                     cost_color_domain, quantity_color_domain = list(cost_columns_options.keys()), list(quantity_columns_options.keys())
                     color_range = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
                     col1, col2 = st.columns(2)
@@ -634,12 +636,10 @@ if uploaded_file is not None:
         with st.spinner(f"Generando desglose por {selected_dimension_key}..."):
             df_grouped = calculate_grouped_aggregation(df, st.session_state.selections, group_cols, cost_columns_options, quantity_columns_options, cost_types_selection, quantity_types_selection)
             
-            # --- INICIO CORRECCIÓN GRÁFICOS ---
             df_grouped_chart = df_grouped[
                 (df_grouped[primary_col] != 'no disponible') & 
                 (df_grouped[secondary_col] != 'no disponible')
             ].copy()
-            # --- FIN CORRECCIÓN GRÁFICOS ---
             
             st.subheader(f'Distribución por {selected_dimension_key}')
             if df_grouped_chart.empty:
