@@ -333,7 +333,7 @@ if uploaded_file is not None:
     quantity_columns_options = {'Cantidad HE 50': 'Cantidad HE 50', 'Cant HE al 50 Sabados': 'Cant HE al 50 Sabados', 'Cantidad HE 100': 'Cantidad HE 100', 'Cantidad HE FC': 'Cantidad HE FC'}
     filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
     
-    # --- INICIO LÓGICA DE FILTROS REESCRITA ---
+    # --- INICIO LÓGICA DE FILTROS REESCRITA (SIN CASCADA) ---
     if 'selections' not in st.session_state:
         st.session_state.selections = {col: [] for col in filter_cols}
 
