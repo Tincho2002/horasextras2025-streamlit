@@ -373,8 +373,6 @@ if uploaded_file is not None:
         saved_selection = st.session_state.final_selections.get(col, [])
         valid_default = [item for item in saved_selection if item in options]
         
-        # Si la selección guardada no coincide con la validada, es porque las opciones cambiaron.
-        # Se actualiza el estado con la selección válida para evitar el error.
         if valid_default != saved_selection:
             st.session_state.final_selections[col] = valid_default
             st.rerun()
@@ -383,7 +381,6 @@ if uploaded_file is not None:
             f'Selecciona {col}(s):', options, default=valid_default, key=f"ms_{col}"
         )
         
-        # Si el usuario cambia la selección, se actualiza el estado y se reinician los filtros subsiguientes.
         if st.session_state.final_selections.get(col, []) != selection:
             st.session_state.final_selections[col] = selection
             for subsequent_col in filter_cols_cascade[i+1:]:
