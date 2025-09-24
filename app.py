@@ -382,6 +382,14 @@ if uploaded_file is not None:
         selection = st.sidebar.multiselect(f'Selecciona {col}(s):', options, default=default_selection, key=f"ms_{col}")
         temp_selections[col] = selection
     st.session_state.final_selections = temp_selections
+    
+    # --- INICIO DE LA CORRECCIÓN PARA EL BOTÓN "CARGAR TODO" ---
+    # Se resetea el estado del botón después de que los filtros hayan sido procesados en el ciclo.
+    # Se elimina el 'st.rerun()' que causaba el doble refresco.
+    if st.session_state.cargar_todo_clicked:
+        st.session_state.cargar_todo_clicked = False
+    # --- FIN DE LA CORRECCIÓN ---
+
     filtered_df = apply_filters(df, st.session_state.final_selections)
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
     st.sidebar.markdown("---")
@@ -395,9 +403,7 @@ if uploaded_file is not None:
     st.session_state.quantity_types_ms = [s for s in st.session_state.quantity_types_ms if s in available_quantity_options]
     st.sidebar.multiselect('Selecciona Tipos de Costo de HE:', options=available_cost_options, key='cost_types_ms')
     st.sidebar.multiselect('Selecciona Tipos de Cantidad de HE:', options=available_quantity_options, key='quantity_types_ms')
-    if st.session_state.cargar_todo_clicked:
-        st.session_state.cargar_todo_clicked = False
-        st.rerun()
+    
     st.info(f"Mostrando **{format_number_es(len(filtered_df), 0)}** registros según los filtros aplicados.")
 
     # --- INICIO DE LA SECCIÓN MODIFICADA: TARJETA DE RESUMEN ANIMADA (v3 - Definitiva) ---
