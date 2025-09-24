@@ -331,73 +331,50 @@ if uploaded_file is not None:
     st.sidebar.header('Filtros del Dashboard')
     cost_columns_options = {'Horas extras al 50 %': 'Horas extras al 50 %', 'Horas extras al 50 % Sabados': 'Horas extras al 50 % Sabados', 'Horas extras al 100%': 'Horas extras al 100%', 'Importe HE Fc': 'Importe HE Fc'}
     quantity_columns_options = {'Cantidad HE 50': 'Cantidad HE 50', 'Cant HE al 50 Sabados': 'Cant HE al 50 Sabados', 'Cantidad HE 100': 'Cantidad HE 100', 'Cantidad HE FC': 'Cantidad HE FC'}
-    filter_cols_cascade = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
+    filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
     
-    if 'final_selections' not in st.session_state:
-        st.session_state.final_selections = {col: [] for col in filter_cols_cascade}
-    if 'cost_types_ms' not in st.session_state:
-        st.session_state.cost_types_ms = list(cost_columns_options.keys())
-    if 'quantity_types_ms' not in st.session_state:
-        st.session_state.quantity_types_ms = list(quantity_columns_options.keys())
+    # --- INICIO LÓGICA DE FILTROS REESCRITA ---
+    if 'selections' not in st.session_state:
+        st.session_state.selections = {col: [] for col in filter_cols}
 
-    # --- LÓGICA DE BOTONES Y FILTROS (REESCRITA) ---
     col1, col2 = st.sidebar.columns(2)
     if col1.button('🧹 Limpiar Filtros', use_container_width=True):
-        st.session_state.final_selections = {col: [] for col in filter_cols_cascade}
-        st.session_state.cost_types_ms = list(cost_columns_options.keys())
-        st.session_state.quantity_types_ms = list(quantity_columns_options.keys())
+        st.session_state.selections = {col: [] for col in filter_cols}
         st.rerun()
 
     if col2.button('📥 Cargar Todo', use_container_width=True):
-        for col in filter_cols_cascade:
+        for col in filter_cols:
             all_options = sorted(df[col].dropna().unique().tolist())
             if col == 'Nivel':
-                st.session_state.final_selections[col] = [opt for opt in all_options if opt != 'no disponible']
+                st.session_state.selections[col] = [opt for opt in all_options if opt != 'no disponible']
             elif col == 'Sexo':
-                st.session_state.final_selections[col] = [opt for opt in all_options if opt in ['Masculino', 'Femenino']]
+                st.session_state.selections[col] = [opt for opt in all_options if opt in ['Masculino', 'Femenino']]
             else:
-                st.session_state.final_selections[col] = all_options
-        st.session_state.cost_types_ms = list(cost_columns_options.keys())
-        st.session_state.quantity_types_ms = list(quantity_columns_options.keys())
+                st.session_state.selections[col] = all_options
         st.rerun()
-
-    st.sidebar.markdown("---")
     
-    df_for_options = df.copy()
-    for i, col in enumerate(filter_cols_cascade):
-        options = sorted(df_for_options[col].dropna().unique().tolist())
-        
+    st.sidebar.markdown("---")
+
+    for col in filter_cols:
+        options = sorted(df[col].dropna().unique().tolist())
         if col == 'Nivel': options = [opt for opt in options if opt != 'no disponible']
         if col == 'Sexo': options = [opt for opt in options if opt in ['Masculino', 'Femenino']]
-
-        saved_selection = st.session_state.final_selections.get(col, [])
-        valid_default = [item for item in saved_selection if item in options]
         
-        if valid_default != saved_selection:
-            st.session_state.final_selections[col] = valid_default
-            st.rerun()
-
-        selection = st.sidebar.multiselect(
-            f'Selecciona {col}(s):', options, default=valid_default, key=f"ms_{col}"
+        st.session_state.selections[col] = st.sidebar.multiselect(
+            f'Selecciona {col}(s):', 
+            options, 
+            default=st.session_state.selections.get(col, [])
         )
-        
-        if st.session_state.final_selections.get(col, []) != selection:
-            st.session_state.final_selections[col] = selection
-            for subsequent_col in filter_cols_cascade[i+1:]:
-                st.session_state.final_selections[subsequent_col] = []
-            st.rerun()
-        
-        if selection:
-            df_for_options = df_for_options[df_for_options[col].isin(selection)]
-    
-    filtered_df = apply_filters(df, st.session_state.final_selections)
-    
+
+    filtered_df = apply_filters(df, st.session_state.selections)
+    # --- FIN LÓGICA DE FILTROS REESCRITA ---
+
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
     st.sidebar.markdown("---")
     st.sidebar.subheader("Selección de Tipos de Horas Extras")
     
-    st.session_state.cost_types_ms = st.sidebar.multiselect('Selecciona Tipos de Costo de HE:', options=list(cost_columns_options.keys()), default=st.session_state.get('cost_types_ms', []))
-    st.session_state.quantity_types_ms = st.sidebar.multiselect('Selecciona Tipos de Cantidad de HE:', options=list(quantity_columns_options.keys()), default=st.session_state.get('quantity_types_ms', []))
+    cost_types_selection = st.sidebar.multiselect('Selecciona Tipos de Costo de HE:', options=list(cost_columns_options.keys()), default=list(cost_columns_options.keys()))
+    quantity_types_selection = st.sidebar.multiselect('Selecciona Tipos de Cantidad de HE:', options=list(quantity_columns_options.keys()), default=list(quantity_columns_options.keys()))
     
     st.info(f"Mostrando **{format_number_es(len(filtered_df), 0)}** registros según los filtros aplicados.")
 
@@ -430,10 +407,8 @@ if uploaded_file is not None:
                         border-radius: 8px;
                         box-shadow: 0 4px 10px rgba(0,0,0,0.05);
                         padding: 1.5rem;
-                        /* 1. FUENTE: Usamos el stack de fuentes directamente con !important para forzarlo */
                         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
                     }}
-                    /* Forzamos la fuente en todos los elementos hijos también */
                     .summary-card * {{
                         font-family: inherit !important;
                     }}
@@ -444,7 +419,6 @@ if uploaded_file is not None:
                         margin-bottom: 1.5rem;
                         border-bottom: 2px solid #e0e0e0;
                         padding-bottom: 1rem;
-                        /* 3. COLOR: Usamos el color lavanda directamente con !important para forzarlo */
                         color: #6C5CE7 !important;
                     }}
                     .summary-totals {{
@@ -587,7 +561,7 @@ if uploaded_file is not None:
     with tab1:
         with st.container(border=True):
             with st.spinner("Generando análisis de tendencias..."):
-                monthly_trends_agg = calculate_monthly_trends(df, st.session_state.final_selections, cost_columns_options, quantity_columns_options, st.session_state.cost_types_ms, st.session_state.quantity_types_ms)
+                monthly_trends_agg = calculate_monthly_trends(df, st.session_state.selections, cost_columns_options, quantity_columns_options, cost_types_selection, quantity_types_selection)
                 if not monthly_trends_agg.empty:
                     total_row = monthly_trends_agg.sum(numeric_only=True).to_frame().T
                     total_row['Mes'] = 'TOTAL'
@@ -599,7 +573,7 @@ if uploaded_file is not None:
                     with col1:
                         chart_data, max_cost = monthly_trends_agg, monthly_trends_agg['Total_Costos'].max()
                         y_scale_cost = alt.Scale(domain=[0, max_cost * 1.15]) if max_cost > 0 else alt.Scale()
-                        cost_bars_vars = [cost_columns_options[k] for k in st.session_state.cost_types_ms]
+                        cost_bars_vars = [cost_columns_options[k] for k in cost_types_selection]
                         monthly_trends_costos_melted_bars = chart_data.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
                         bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero', scale=y_scale_cost, axis=alt.Axis(format='$,.0f')), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=cost_color_domain, range=color_range)))
                         line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)', scale=y_scale_cost, axis=alt.Axis(format='$,.0f')), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format='$,.2f')])
@@ -610,7 +584,7 @@ if uploaded_file is not None:
                     with col2:
                         chart_data, max_quant = monthly_trends_agg, monthly_trends_agg['Total_Cantidades'].max()
                         y_scale_quant = alt.Scale(domain=[0, max_quant * 1.15]) if max_quant > 0 else alt.Scale()
-                        quantity_bars_vars = [quantity_columns_options[k] for k in st.session_state.quantity_types_ms]
+                        quantity_bars_vars = [quantity_columns_options[k] for k in quantity_types_selection]
                         monthly_trends_cantidades_melted_bars = chart_data.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
                         bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Cantidad:Q', stack='zero', scale=y_scale_quant, axis=alt.Axis(format=',.0f')), color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=quantity_color_domain, range=color_range)))
                         line_cantidades = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Cantidades:Q', title='Cantidad', scale=y_scale_quant, axis=alt.Axis(format=',.0f')), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')])
@@ -656,7 +630,7 @@ if uploaded_file is not None:
         group_cols = dimension_options[selected_dimension_key]
         primary_col, secondary_col = group_cols[0], group_cols[1]
         with st.spinner(f"Generando desglose por {selected_dimension_key}..."):
-            df_grouped = calculate_grouped_aggregation(df, st.session_state.final_selections, group_cols, cost_columns_options, quantity_columns_options, st.session_state.cost_types_ms, st.session_state.quantity_types_ms)
+            df_grouped = calculate_grouped_aggregation(df, st.session_state.selections, group_cols, cost_columns_options, quantity_columns_options, cost_types_selection, quantity_types_selection)
             st.subheader(f'Distribución por {selected_dimension_key}')
             if df_grouped.empty:
                 st.warning(f"No hay datos para '{selected_dimension_key}' con los filtros seleccionados.")
@@ -666,7 +640,6 @@ if uploaded_file is not None:
                     total_row[primary_col], total_row[secondary_col] = 'TOTAL', ''
                     df_grouped_with_total = pd.concat([df_grouped, total_row], ignore_index=True)
                     
-                    # --- INICIO DE LA CORRECCIÓN DEFINITIVA ---
                     secondary_domain = df_grouped[secondary_col].unique().tolist()
                     palette = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
                     color_scale = alt.Scale(domain=secondary_domain, range=palette[:len(secondary_domain)])
@@ -709,7 +682,6 @@ if uploaded_file is not None:
                             text=alt.Text('total:Q', format=',.0f')
                         )
                         st.altair_chart(alt.layer(bars, total_labels).properties(title='Cantidades').interactive(), use_container_width=True)
-                    # --- FIN DE LA CORRECCIÓN DEFINITIVA ---
 
                     st.subheader('Tabla de Distribución')
                     st.dataframe(df_grouped_with_total.style.format(create_format_dict(df_grouped_with_total)), use_container_width=True)
@@ -718,7 +690,7 @@ if uploaded_file is not None:
     with tab3:
         with st.container(border=True):
             with st.spinner("Calculando ranking de empleados..."):
-                employee_overtime = calculate_employee_overtime(df, st.session_state.final_selections, cost_columns_options, quantity_columns_options, st.session_state.cost_types_ms, st.session_state.quantity_types_ms)
+                employee_overtime = calculate_employee_overtime(df, st.session_state.selections, cost_columns_options, quantity_columns_options, cost_types_selection, quantity_types_selection)
                 if not employee_overtime.empty:
                     st.header(f'Top {top_n_employees} Empleados con Mayor Horas Extras')
                     top_costo_empleados, top_cantidad_empleados = employee_overtime.nlargest(top_n_employees, 'Total_Costos'), employee_overtime.nlargest(top_n_employees, 'Total_Cantidades')
@@ -749,7 +721,7 @@ if uploaded_file is not None:
             with st.spinner("Calculando valores promedio por hora..."):
                 st.header('Valores Promedio por Hora')
                 grouping_dimension = st.selectbox('Selecciona la dimensión de desglose:', ['Gerencia', 'Legajo', 'Función', 'CECO', 'Ubicación', 'Nivel', 'Sexo'], key='valor_hora_grouping')
-                df_valor_hora = calculate_average_hourly_rate(df, st.session_state.final_selections, grouping_dimension)
+                df_valor_hora = calculate_average_hourly_rate(df, st.session_state.selections, grouping_dimension)
                 if not df_valor_hora.empty:
                     st.dataframe(df_valor_hora.style.format(create_format_dict(df_valor_hora)), use_container_width=True)
                     generate_download_buttons(df_valor_hora, f'valores_promedio_hora_por_{grouping_dimension}', 'tab_valor_hora')
