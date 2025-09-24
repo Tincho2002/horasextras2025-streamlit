@@ -301,6 +301,13 @@ def load_and_clean_data(uploaded_file):
     for col in cols_for_filters:
         if col not in df_excel.columns: df_excel[col] = 'no disponible'
         df_excel[col] = df_excel[col].astype(str).str.strip().replace(['None', 'nan', ''], 'no disponible')
+    
+    # --- INICIO DE LA CORRECCIÓN DEFINITIVA DE DATOS ---
+    if 'Sexo' in df_excel.columns:
+        valid_sexo = ['Masculino', 'Femenino']
+        df_excel['Sexo'] = df_excel['Sexo'].apply(lambda x: x if x in valid_sexo else 'no disponible')
+    # --- FIN DE LA CORRECCIÓN DEFINITIVA DE DATOS ---
+
     for col_to_int in ['CECO', 'Nivel']:
         if col_to_int in df_excel.columns:
             df_excel[col_to_int] = df_excel[col_to_int].replace('no disponible', pd.NA)
@@ -735,4 +742,3 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados', 'tab4_brutos')
 else:
     st.info("Por favor, cargue un archivo Excel para comenzar el análisis.")
-
