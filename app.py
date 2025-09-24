@@ -332,77 +332,82 @@ if uploaded_file is not None:
     cost_columns_options = {'Horas extras al 50 %': 'Horas extras al 50 %', 'Horas extras al 50 % Sabados': 'Horas extras al 50 % Sabados', 'Horas extras al 100%': 'Horas extras al 100%', 'Importe HE Fc': 'Importe HE Fc'}
     quantity_columns_options = {'Cantidad HE 50': 'Cantidad HE 50', 'Cant HE al 50 Sabados': 'Cant HE al 50 Sabados', 'Cantidad HE 100': 'Cantidad HE 100', 'Cantidad HE FC': 'Cantidad HE FC'}
     filter_cols_cascade = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
+    
+    # Inicialización del estado de la sesión si es necesario
     if 'final_selections' not in st.session_state:
         st.session_state.final_selections = {col: [] for col in filter_cols_cascade}
     if 'cost_types_ms' not in st.session_state:
         st.session_state.cost_types_ms = list(cost_columns_options.keys())
     if 'quantity_types_ms' not in st.session_state:
         st.session_state.quantity_types_ms = list(quantity_columns_options.keys())
-    if 'cargar_todo_clicked' not in st.session_state:
-        st.session_state.cargar_todo_clicked = False
-    col1, col2 = st.sidebar.columns(2)
-    with col1:
-        if st.button('🧹 Limpiar Filtros', use_container_width=True):
-            st.session_state.final_selections = {col: [] for col in filter_cols_cascade}
-            st.session_state.cost_types_ms = list(cost_columns_options.keys())
-            st.session_state.quantity_types_ms = list(quantity_columns_options.keys())
-            st.rerun()
-    with col2:
-        if st.button('📥 Cargar Todo', use_container_width=True):
-            st.session_state.cargar_todo_clicked = True
-            st.rerun()
-    st.sidebar.markdown("---")
-    def get_sorted_unique_options(dataframe, column_name):
-        if column_name in dataframe.columns:
-            unique_values = dataframe[column_name].dropna().unique().tolist()
-            if not unique_values: return []
-            try:
-                return sorted(unique_values, key=lambda x: int(x) if isinstance(x, str) and x.isdigit() else float('inf'))
-            except (ValueError, TypeError):
-                return sorted(unique_values)
-        return []
-    temp_selections = st.session_state.final_selections.copy()
-    for col in filter_cols_cascade:
-        df_options = df.copy()
-        for other_col in filter_cols_cascade:
-            if other_col != col and temp_selections.get(other_col):
-                df_options = df_options[df_options[other_col].isin(temp_selections[other_col])]
-        options = get_sorted_unique_options(df_options, col)
 
+    # --- LÓGICA DE BOTONES Y FILTROS (CORREGIDA) ---
+    col1, col2 = st.sidebar.columns(2)
+    if col1.button('🧹 Limpiar Filtros', use_container_width=True):
+        st.session_state.final_selections = {col: [] for col in filter_cols_cascade}
+        st.session_state.cost_types_ms = list(cost_columns_options.keys())
+        st.session_state.quantity_types_ms = list(quantity_columns_options.keys())
+        st.rerun()
+
+    if col2.button('📥 Cargar Todo', use_container_width=True):
+        # Al hacer clic, se actualiza el estado de la sesión para cada filtro y se reinicia
+        for col in filter_cols_cascade:
+            all_options = sorted(df[col].dropna().unique().tolist())
+            if col == 'Nivel':
+                st.session_state.final_selections[col] = [opt for opt in all_options if opt != 'no disponible']
+            elif col == 'Sexo':
+                st.session_state.final_selections[col] = [opt for opt in all_options if opt in ['Masculino', 'Femenino']]
+            else:
+                st.session_state.final_selections[col] = all_options
+        
+        st.session_state.cost_types_ms = list(cost_columns_options.keys())
+        st.session_state.quantity_types_ms = list(quantity_columns_options.keys())
+        st.rerun()
+
+    st.sidebar.markdown("---")
+    
+    # Renderizado de filtros
+    temp_df = df.copy()
+    for col in filter_cols_cascade:
+        options = sorted(temp_df[col].dropna().unique().tolist())
+        
         if col == 'Nivel':
             options = [opt for opt in options if opt != 'no disponible']
-
         if col == 'Sexo':
-            allowed_sexo_options = ['Masculino', 'Femenino']
-            options = [opt for opt in options if opt in allowed_sexo_options]
+            options = [opt for opt in options if opt in ['Masculino', 'Femenino']]
 
-        default_selection = [s for s in temp_selections.get(col, []) if s in options]
-        if st.session_state.cargar_todo_clicked:
-            default_selection = options
-        selection = st.sidebar.multiselect(f'Selecciona {col}(s):', options, default=default_selection, key=f"ms_{col}")
-        temp_selections[col] = selection
-    st.session_state.final_selections = temp_selections
-    
-    # --- INICIO DE LA CORRECCIÓN PARA EL BOTÓN "CARGAR TODO" ---
-    # Se resetea el estado del botón después de que los filtros hayan sido procesados en el ciclo.
-    # Se elimina el 'st.rerun()' que causaba el doble refresco.
-    if st.session_state.cargar_todo_clicked:
-        st.session_state.cargar_todo_clicked = False
-    # --- FIN DE LA CORRECCIÓN ---
-
+        # El valor por defecto se toma directamente del estado de la sesión
+        selection = st.sidebar.multiselect(
+            f'Selecciona {col}(s):', 
+            options, 
+            default=st.session_state.final_selections.get(col, []), 
+            key=f"ms_{col}"
+        )
+        
+        # Actualizar el estado y filtrar el DataFrame para el siguiente filtro en cascada
+        if st.session_state.final_selections.get(col) != selection:
+            st.session_state.final_selections[col] = selection
+            st.rerun()
+        
+        if selection:
+            temp_df = temp_df[temp_df[col].isin(selection)]
+            
     filtered_df = apply_filters(df, st.session_state.final_selections)
+    
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
     st.sidebar.markdown("---")
     st.sidebar.subheader("Selección de Tipos de Horas Extras")
-    available_cost_options = [opt for opt, col in cost_columns_options.items() if col in filtered_df.columns and filtered_df[col].sum() > 0]
-    available_quantity_options = [opt for opt, col in quantity_columns_options.items() if col in filtered_df.columns and filtered_df[col].sum() > 0]
-    if st.session_state.cargar_todo_clicked:
-        st.session_state.cost_types_ms = available_cost_options
-        st.session_state.quantity_types_ms = available_quantity_options
-    st.session_state.cost_types_ms = [s for s in st.session_state.cost_types_ms if s in available_cost_options]
-    st.session_state.quantity_types_ms = [s for s in st.session_state.quantity_types_ms if s in available_quantity_options]
-    st.sidebar.multiselect('Selecciona Tipos de Costo de HE:', options=available_cost_options, key='cost_types_ms')
-    st.sidebar.multiselect('Selecciona Tipos de Cantidad de HE:', options=available_quantity_options, key='quantity_types_ms')
+    
+    st.session_state.cost_types_ms = st.sidebar.multiselect(
+        'Selecciona Tipos de Costo de HE:', 
+        options=list(cost_columns_options.keys()), 
+        default=st.session_state.get('cost_types_ms', [])
+    )
+    st.session_state.quantity_types_ms = st.sidebar.multiselect(
+        'Selecciona Tipos de Cantidad de HE:', 
+        options=list(quantity_columns_options.keys()), 
+        default=st.session_state.get('quantity_types_ms', [])
+    )
     
     st.info(f"Mostrando **{format_number_es(len(filtered_df), 0)}** registros según los filtros aplicados.")
 
