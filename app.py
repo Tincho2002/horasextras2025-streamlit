@@ -671,9 +671,7 @@ if uploaded_file is not None:
                         bars = alt.Chart(df_grouped).mark_bar().encode(
                             x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)", axis=alt.Axis(format='$,.0f')),
                             y=y_axis,
-                            color=alt.Color(f'{secondary_col}:N',
-                                            legend=alt.Legend(orient="bottom", title=secondary_col),
-                                            scale=alt.Scale(domain=df_grouped[secondary_col].unique().tolist())),
+                            color=alt.Color(f'{secondary_col}:N', legend=alt.Legend(orient="bottom", title=secondary_col)),
                             tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Costos):Q', format='$,.2f', title='Costo')]
                         )
                         total_labels = alt.Chart(df_grouped).transform_aggregate(total='sum(Total_Costos)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(
@@ -689,9 +687,7 @@ if uploaded_file is not None:
                         bars = alt.Chart(df_grouped).mark_bar().encode(
                             x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades", axis=alt.Axis(format=',.0f')),
                             y=y_axis,
-                            color=alt.Color(f'{secondary_col}:N',
-                                            legend=alt.Legend(orient="bottom", title=secondary_col),
-                                            scale=alt.Scale(domain=df_grouped[secondary_col].unique().tolist())),
+                            color=alt.Color(f'{secondary_col}:N', legend=alt.Legend(orient="bottom", title=secondary_col)),
                             tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Cantidades):Q', format=',.0f', title='Cantidad')]
                         )
                         total_labels = alt.Chart(df_grouped).transform_aggregate(total='sum(Total_Cantidades)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(
