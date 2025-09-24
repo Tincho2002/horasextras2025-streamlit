@@ -320,11 +320,11 @@ uploaded_file = st.file_uploader("📂 Cargue aquí su archivo Excel de Horas Ex
 if uploaded_file is not None:
     with st.spinner('Procesando archivo...'):
         df = load_and_clean_data(uploaded_file)
-    
+
     if df.empty:
         st.error("El archivo cargado está vacío o no se pudo procesar. Verifique el contenido y el formato.")
         st.stop()
-    
+
     st.success(f"Se ha cargado un total de **{format_number_es(len(df), 0)}** registros de horas extras.")
 
     # --- DEFINICIÓN Y ESTADO DE FILTROS ---
@@ -351,7 +351,7 @@ if uploaded_file is not None:
         if st.button('📥 Cargar Todo', use_container_width=True):
             st.session_state.cargar_todo_clicked = True
             st.rerun()
-    st.sidebar.markdown("---") 
+    st.sidebar.markdown("---")
     def get_sorted_unique_options(dataframe, column_name):
         if column_name in dataframe.columns:
             unique_values = dataframe[column_name].dropna().unique().tolist()
@@ -421,7 +421,7 @@ if uploaded_file is not None:
                 month_dt = datetime.strptime(latest_month_str, '%Y-%m')
                 meses_espanol = {1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL", 5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO", 9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE"}
                 month_name = f"{meses_espanol.get(month_dt.month, '')} {month_dt.year}"
-                
+
                 card_html = f"""
                 <style>
                     .summary-card {{
@@ -488,7 +488,7 @@ if uploaded_file is not None:
                     .summary-sub-kpi .value-cost {{ color: #2a7a2a; }}
                     .summary-sub-kpi .value-qty {{ color: #3a3a9a; }}
                 </style>
-                
+
                 <div class="summary-card">
                     <div class="summary-header">RESUMEN MENSUAL: {month_name}</div>
                     <div class="summary-totals">
@@ -548,16 +548,16 @@ if uploaded_file is not None:
                             if (!startTimestamp) startTimestamp = timestamp;
                             const progress = Math.min((timestamp - startTimestamp) / duration, 1);
                             const currentVal = progress * (end - start) + start;
-                            
+
                             let formattedVal;
                             if (type === 'currency') {{
                                 formattedVal = currencyFormatter.format(currentVal).replace(/^ARS\\s/, '$');
                             }} else {{
                                 formattedVal = numberFormatter.format(currentVal);
                             }}
-                            
+
                             obj.innerHTML = formattedVal + suffix;
-                            
+
                             if (progress < 1) {{
                                 window.requestAnimationFrame(step);
                             }}
@@ -567,7 +567,7 @@ if uploaded_file is not None:
 
                     const counters = document.querySelectorAll('[data-target]');
                     counters.forEach(counter => {{
-                        counter.innerHTML = ''; 
+                        counter.innerHTML = '';
                         const target = +counter.getAttribute('data-target');
                         setTimeout(() => animateValue(counter, 0, target, 1500), 100);
                     }});
@@ -603,7 +603,7 @@ if uploaded_file is not None:
                         bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero', scale=y_scale_cost, axis=alt.Axis(format='$,.0f')), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=cost_color_domain, range=color_range)))
                         line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)', scale=y_scale_cost, axis=alt.Axis(format='$,.0f')), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format='$,.2f')])
                         text_costos = line_costos.mark_text(align='center', baseline='bottom', dy=-10, color='black').encode(text=alt.Text('Total_Costos:Q', format='$,.0f'))
-                        
+
                         st.altair_chart(alt.layer(bars_costos, line_costos, text_costos).resolve_scale(y='shared').properties(title=alt.TitleParams('Costos Mensuales', anchor='middle')).interactive(), use_container_width=True)
 
                     with col2:
@@ -614,7 +614,7 @@ if uploaded_file is not None:
                         bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Cantidad:Q', stack='zero', scale=y_scale_quant, axis=alt.Axis(format=',.0f')), color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=quantity_color_domain, range=color_range)))
                         line_cantidades = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Cantidades:Q', title='Cantidad', scale=y_scale_quant, axis=alt.Axis(format=',.0f')), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')])
                         text_cantidades = line_cantidades.mark_text(align='center', baseline='bottom', dy=-10, color='black').encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
-                        
+
                         st.altair_chart(alt.layer(bars_cantidades, line_cantidades, text_cantidades).resolve_scale(y='shared').properties(title=alt.TitleParams('Cantidades Mensuales', anchor='middle')).interactive(), use_container_width=True)
 
                     st.subheader('Tabla de Tendencias Mensuales')
@@ -640,7 +640,7 @@ if uploaded_file is not None:
                         text_pos_cant = bars_var_cant.mark_text(align='center', baseline='bottom', dy=-4, color='#333').encode(text=alt.Text('Variacion_Cantidades_Abs:Q', format=',.0f')).transform_filter(alt.datum.Variacion_Cantidades_Abs >= 0)
                         text_neg_cant = bars_var_cant.mark_text(align='center', baseline='top', dy=4, color='#333').encode(text=alt.Text('Variacion_Cantidades_Abs:Q', format=',.0f')).transform_filter(alt.datum.Variacion_Cantidades_Abs < 0)
                         st.altair_chart((bars_var_cant + text_pos_cant + text_neg_cant).interactive(), use_container_width=True)
-                        
+
                     st.subheader('Tabla de Variaciones Mensuales')
                     df_variaciones = monthly_trends_for_var[['Mes', 'Total_Costos', 'Variacion_Costos_Abs', 'Variacion_Costos_Pct', 'Total_Cantidades', 'Variacion_Cantidades_Abs', 'Variacion_Cantidades_Pct']]
                     formatters_var = create_format_dict(df_variaciones)
@@ -668,15 +668,33 @@ if uploaded_file is not None:
                     with col1:
                         sort_order = df_grouped.groupby(primary_col)['Total_Costos'].sum().sort_values(ascending=False).index.tolist()
                         y_axis = alt.Y(f'{primary_col}:N', sort=sort_order, title=primary_col)
-                        bars = alt.Chart(df_grouped).mark_bar().encode(x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)", axis=alt.Axis(format='$,.0f')), y=y_axis, color=f'{secondary_col}:N', tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Costos):Q', format='$,.2f', title='Costo')])
-                        total_labels = alt.Chart(df_grouped).transform_aggregate(total='sum(Total_Costos)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(x='total:Q', y=y_axis, text=alt.Text('total:Q', format='$,.0f'))
+                        bars = alt.Chart(df_grouped).mark_bar().encode(
+                            x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)", axis=alt.Axis(format='$,.0f')),
+                            y=y_axis,
+                            color=alt.Color(f'{secondary_col}:N', legend=alt.Legend(orient="bottom", title=secondary_col)),
+                            tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Costos):Q', format='$,.2f', title='Costo')]
+                        )
+                        total_labels = alt.Chart(df_grouped).transform_aggregate(total='sum(Total_Costos)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(
+                            x='total:Q',
+                            y=y_axis,
+                            text=alt.Text('total:Q', format='$,.0f')
+                        )
                         st.altair_chart(alt.layer(bars, total_labels).properties(title='Costos').interactive(), use_container_width=True)
 
                     with col2:
                         sort_order = df_grouped.groupby(primary_col)['Total_Cantidades'].sum().sort_values(ascending=False).index.tolist()
                         y_axis = alt.Y(f'{primary_col}:N', sort=sort_order, title=primary_col)
-                        bars = alt.Chart(df_grouped).mark_bar().encode(x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades", axis=alt.Axis(format=',.0f')), y=y_axis, color=f'{secondary_col}:N', tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Cantidades):Q', format=',.0f', title='Cantidad')])
-                        total_labels = alt.Chart(df_grouped).transform_aggregate(total='sum(Total_Cantidades)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(x='total:Q', y=y_axis, text=alt.Text('total:Q', format=',.0f'))
+                        bars = alt.Chart(df_grouped).mark_bar().encode(
+                            x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades", axis=alt.Axis(format=',.0f')),
+                            y=y_axis,
+                            color=alt.Color(f'{secondary_col}:N', legend=alt.Legend(orient="bottom", title=secondary_col)),
+                            tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Cantidades):Q', format=',.0f', title='Cantidad')]
+                        )
+                        total_labels = alt.Chart(df_grouped).transform_aggregate(total='sum(Total_Cantidades)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(
+                            x='total:Q',
+                            y=y_axis,
+                            text=alt.Text('total:Q', format=',.0f')
+                        )
                         st.altair_chart(alt.layer(bars, total_labels).properties(title='Cantidades').interactive(), use_container_width=True)
 
                     st.subheader('Tabla de Distribución')
@@ -731,3 +749,4 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados', 'tab4_brutos')
 else:
     st.info("Por favor, cargue un archivo Excel para comenzar el análisis.")
+
