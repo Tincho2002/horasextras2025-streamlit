@@ -1,4 +1,7 @@
-Streamlit
-Pandas
-altair 
+streamlit
+pandas
+altair
+numpy
+plotly
 openpyxl
+
