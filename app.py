@@ -354,31 +354,27 @@ if uploaded_file is not None:
     quantity_columns_options = {'Cantidad HE 50': 'Cantidad HE 50', 'Cant HE al 50 Sabados': 'Cant HE al 50 Sabados', 'Cantidad HE 100': 'Cantidad HE 100', 'Cantidad HE FC': 'Cantidad HE FC'}
     filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
     
-    # --- INICIO: LÓGICA MODIFICADA DE SESSION STATE ---
     if 'selections' not in st.session_state:
         st.session_state.selections = {col: [] for col in filter_cols}
     if 'cost_types' not in st.session_state:
         st.session_state.cost_types = list(cost_columns_options.keys())
     if 'quantity_types' not in st.session_state:
         st.session_state.quantity_types = list(quantity_columns_options.keys())
-    # --- FIN: LÓGICA MODIFICADA DE SESSION STATE ---
 
     col1, col2 = st.sidebar.columns(2)
-    # --- INICIO: LÓGICA DE BOTONES MODIFICADA ---
     if col1.button('🧹 Limpiar Filtros', use_container_width=True):
         st.session_state.selections = {col: [] for col in filter_cols}
-        st.session_state.cost_types = []  # Limpiar también los tipos de HE
-        st.session_state.quantity_types = [] # Limpiar también los tipos de HE
+        st.session_state.cost_types = []
+        st.session_state.quantity_types = []
         st.rerun()
 
     if col2.button('📥 Cargar Todo', use_container_width=True):
         for col in filter_cols:
             all_options = sorted(df[col].dropna().unique().tolist())
             st.session_state.selections[col] = [opt for opt in all_options if opt != 'no disponible']
-        st.session_state.cost_types = list(cost_columns_options.keys()) # Cargar también todos los tipos de HE
-        st.session_state.quantity_types = list(quantity_columns_options.keys()) # Cargar también todos los tipos de HE
+        st.session_state.cost_types = list(cost_columns_options.keys())
+        st.session_state.quantity_types = list(quantity_columns_options.keys())
         st.rerun()
-    # --- FIN: LÓGICA DE BOTONES MODIFICADA ---
     
     st.sidebar.markdown("---")
 
@@ -393,7 +389,6 @@ if uploaded_file is not None:
     st.sidebar.markdown("---")
     st.sidebar.subheader("Selección de Tipos de Horas Extras")
     
-    # --- INICIO: WIDGETS DE FILTROS DE HE MODIFICADOS ---
     st.session_state.cost_types = st.sidebar.multiselect(
         'Selecciona Tipos de Costo de HE:', 
         options=list(cost_columns_options.keys()), 
@@ -404,7 +399,6 @@ if uploaded_file is not None:
         options=list(quantity_columns_options.keys()), 
         default=st.session_state.get('quantity_types', [])
     )
-    # --- FIN: WIDGETS DE FILTROS DE HE MODIFICADOS ---
     
     st.info(f"Mostrando **{format_number_es(len(filtered_df), 0)}** registros según los filtros aplicados.")
 
@@ -517,9 +511,7 @@ if uploaded_file is not None:
             st.header('Tendencias Mensuales de Horas Extras')
             st.markdown("<br>", unsafe_allow_html=True)
             with st.spinner("Generando análisis de tendencias..."):
-                # --- INICIO: LLAMADA A FUNCIÓN MODIFICADA ---
                 monthly_trends_agg = calculate_monthly_trends(df, st.session_state.selections, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
-                # --- FIN: LLAMADA A FUNCIÓN MODIFICADA ---
                 if not monthly_trends_agg.empty:
                     total_row = monthly_trends_agg.sum(numeric_only=True).to_frame().T
                     total_row['Mes'] = 'TOTAL'
@@ -530,9 +522,7 @@ if uploaded_file is not None:
                     with col1:
                         chart_data, max_cost = monthly_trends_agg, monthly_trends_agg['Total_Costos'].max()
                         y_scale_cost = alt.Scale(domain=[0, max_cost * 1.25]) if max_cost > 0 else alt.Scale()
-                        # --- INICIO: USO DE SESSION STATE PARA GRÁFICO ---
-                        cost_bars_vars = [cost_columns_options[k] for k in st.session_state.cost_types]
-                        # --- FIN: USO DE SESSION STATE PARA GRÁFICO ---
+                        cost_bars_vars = [cost_columns_options[k] for k in st.session_state.cost_types if k in cost_columns_options]
                         monthly_trends_costos_melted_bars = chart_data.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
                         bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero', scale=y_scale_cost, axis=alt.Axis(format='$,.0f')), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=cost_color_domain, range=color_range)))
                         line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)', scale=y_scale_cost, axis=alt.Axis(format='$,.0f')), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format='$,.2f')])
@@ -541,9 +531,7 @@ if uploaded_file is not None:
                     with col2:
                         chart_data, max_quant = monthly_trends_agg, monthly_trends_agg['Total_Cantidades'].max()
                         y_scale_quant = alt.Scale(domain=[0, max_quant * 1.25]) if max_quant > 0 else alt.Scale()
-                        # --- INICIO: USO DE SESSION STATE PARA GRÁFICO ---
-                        quantity_bars_vars = [quantity_columns_options[k] for k in st.session_state.quantity_types]
-                        # --- FIN: USO DE SESSION STATE PARA GRÁFICO ---
+                        quantity_bars_vars = [quantity_columns_options[k] for k in st.session_state.quantity_types if k in quantity_columns_options]
                         monthly_trends_cantidades_melted_bars = chart_data.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
                         bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Cantidad:Q', stack='zero', scale=y_scale_quant, axis=alt.Axis(format=',.0f')), color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=quantity_color_domain, range=color_range)))
                         line_cantidades = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Cantidades:Q', title='Cantidad', scale=y_scale_quant, axis=alt.Axis(format=',.0f')), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')])
@@ -593,20 +581,17 @@ if uploaded_file is not None:
         else:
             df_mapa_display = filtered_df.copy()
             
-            # --- Lógica para determinar el mes a mostrar ---
             latest_month_map = ""
-            # Si hay meses seleccionados en el filtro, usa el último de la lista ordenada
             if st.session_state.selections.get('Mes'):
                 all_months_sorted = sorted(df['Mes'].dropna().unique())
                 selected_months_sorted = [m for m in all_months_sorted if m in st.session_state.selections['Mes']]
                 if selected_months_sorted:
                     latest_month_map = selected_months_sorted[-1]
-            # Si no hay meses en el filtro, usa el último mes de todo el dataset
             else:
                 latest_month_map = df['Mes'].dropna().max()
 
             if pd.notna(latest_month_map):
-                df_mapa_display = df[df['Mes'] == latest_month_map] # Usa el df original para asegurar datos completos del mes
+                df_mapa_display = df[df['Mes'] == latest_month_map]
                 month_dt_map = datetime.strptime(latest_month_map, '%Y-%m')
                 meses_espanol = {1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL", 5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO", 9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE"}
                 month_name_map = f"{meses_espanol.get(month_dt_map.month, '')} {month_dt_map.year}"
@@ -644,44 +629,46 @@ if uploaded_file is not None:
         group_cols = dimension_options[selected_dimension_key]
         primary_col, secondary_col = group_cols[0], group_cols[1]
         with st.spinner(f"Generando desglose por {selected_dimension_key}..."):
-            # --- INICIO: LLAMADA A FUNCIÓN MODIFICADA ---
             df_grouped = calculate_grouped_aggregation(df, st.session_state.selections, group_cols, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
-            # --- FIN: LLAMADA A FUNCIÓN MODIFICADA ---
-            df_grouped_chart = df_grouped[(df_grouped[primary_col] != 'no disponible') & (df_grouped[secondary_col] != 'no disponible')].copy()
             st.subheader(f'Distribución por {selected_dimension_key}')
-            if df_grouped_chart.empty:
+            
+            # --- INICIO: BLOQUE DE CÓDIGO CORREGIDO PARA MANEJAR DATAFRAMES VACÍOS ---
+            if df_grouped.empty:
                 st.warning(f"No hay datos para '{selected_dimension_key}' con los filtros seleccionados.")
             else:
-                with st.container(border=True):
-                    total_row = df_grouped.sum(numeric_only=True).to_frame().T
-                    total_row[primary_col], total_row[secondary_col] = 'TOTAL', ''
-                    df_grouped_with_total = pd.concat([df_grouped, total_row], ignore_index=True)
-                    secondary_domain = df_grouped_chart[secondary_col].unique().tolist()
-                    palette = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
-                    color_scale = alt.Scale(domain=secondary_domain, range=palette[:len(secondary_domain)])
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        sort_order = df_grouped_chart.groupby(primary_col)['Total_Costos'].sum().sort_values(ascending=False).index.tolist()
-                        y_axis = alt.Y(f'{primary_col}:N', sort=sort_order, title=primary_col)
-                        bars = alt.Chart(df_grouped_chart).mark_bar().encode(x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)", axis=alt.Axis(format='$,.0f')), y=y_axis, color=alt.Color(f'{secondary_col}:N', legend=alt.Legend(orient="bottom", title=secondary_col, columns=4, labelLimit=0), scale=color_scale), tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Costos):Q', format='$,.2f', title='Costo')])
-                        total_labels = alt.Chart(df_grouped_chart).transform_aggregate(total='sum(Total_Costos)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(x='total:Q', y=y_axis, text=alt.Text('total:Q', format='$,.0f'))
-                        st.altair_chart(alt.layer(bars, total_labels).properties(title='Costos').interactive(), use_container_width=True)
-                    with col2:
-                        sort_order = df_grouped_chart.groupby(primary_col)['Total_Cantidades'].sum().sort_values(ascending=False).index.tolist()
-                        y_axis = alt.Y(f'{primary_col}:N', sort=sort_order, title=primary_col)
-                        bars = alt.Chart(df_grouped_chart).mark_bar().encode(x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades", axis=alt.Axis(format=',.0f')), y=y_axis, color=alt.Color(f'{secondary_col}:N', legend=alt.Legend(orient="bottom", title=secondary_col, columns=4, labelLimit=0), scale=color_scale), tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Cantidades):Q', format=',.0f', title='Cantidad')])
-                        total_labels = alt.Chart(df_grouped_chart).transform_aggregate(total='sum(Total_Cantidades)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(x='total:Q', y=y_axis, text=alt.Text('total:Q', format=',.0f'))
-                        st.altair_chart(alt.layer(bars, total_labels).properties(title='Cantidades').interactive(), use_container_width=True)
-                    st.subheader('Tabla de Distribución')
-                    st.dataframe(df_grouped_with_total.style.format(create_format_dict(df_grouped_with_total)), use_container_width=True)
-                    generate_download_buttons(df_grouped_with_total, f'dist_{selected_dimension_key.replace(" y ", "_").lower()}', f'tab2_{selected_dimension_key}')
+                df_grouped_chart = df_grouped[(df_grouped[primary_col] != 'no disponible') & (df_grouped[secondary_col] != 'no disponible')].copy()
+                if df_grouped_chart.empty:
+                    st.warning(f"No hay datos válidos (distintos de 'no disponible') para mostrar en el gráfico para '{selected_dimension_key}'.")
+                else:
+                    with st.container(border=True):
+                        total_row = df_grouped.sum(numeric_only=True).to_frame().T
+                        total_row[primary_col], total_row[secondary_col] = 'TOTAL', ''
+                        df_grouped_with_total = pd.concat([df_grouped, total_row], ignore_index=True)
+                        secondary_domain = sorted(df_grouped_chart[secondary_col].unique().tolist())
+                        palette = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+                        color_scale = alt.Scale(domain=secondary_domain, range=palette[:len(secondary_domain)])
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            sort_order = df_grouped_chart.groupby(primary_col)['Total_Costos'].sum().sort_values(ascending=False).index.tolist()
+                            y_axis = alt.Y(f'{primary_col}:N', sort=sort_order, title=primary_col)
+                            bars = alt.Chart(df_grouped_chart).mark_bar().encode(x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)", axis=alt.Axis(format='$,.0f')), y=y_axis, color=alt.Color(f'{secondary_col}:N', legend=alt.Legend(orient="bottom", title=secondary_col, columns=4, labelLimit=0), scale=color_scale), tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Costos):Q', format='$,.2f', title='Costo')])
+                            total_labels = alt.Chart(df_grouped_chart).transform_aggregate(total='sum(Total_Costos)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(x='total:Q', y=y_axis, text=alt.Text('total:Q', format='$,.0f'))
+                            st.altair_chart(alt.layer(bars, total_labels).properties(title='Costos').interactive(), use_container_width=True)
+                        with col2:
+                            sort_order = df_grouped_chart.groupby(primary_col)['Total_Cantidades'].sum().sort_values(ascending=False).index.tolist()
+                            y_axis = alt.Y(f'{primary_col}:N', sort=sort_order, title=primary_col)
+                            bars = alt.Chart(df_grouped_chart).mark_bar().encode(x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades", axis=alt.Axis(format=',.0f')), y=y_axis, color=alt.Color(f'{secondary_col}:N', legend=alt.Legend(orient="bottom", title=secondary_col, columns=4, labelLimit=0), scale=color_scale), tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Cantidades):Q', format=',.0f', title='Cantidad')])
+                            total_labels = alt.Chart(df_grouped_chart).transform_aggregate(total='sum(Total_Cantidades)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(x='total:Q', y=y_axis, text=alt.Text('total:Q', format=',.0f'))
+                            st.altair_chart(alt.layer(bars, total_labels).properties(title='Cantidades').interactive(), use_container_width=True)
+                        st.subheader('Tabla de Distribución')
+                        st.dataframe(df_grouped_with_total.style.format(create_format_dict(df_grouped_with_total)), use_container_width=True)
+                        generate_download_buttons(df_grouped_with_total, f'dist_{selected_dimension_key.replace(" y ", "_").lower()}', f'tab2_{selected_dimension_key}')
+            # --- FIN: BLOQUE DE CÓDIGO CORREGIDO ---
 
     with tab_empleados:
         with st.container(border=True):
             with st.spinner("Calculando ranking de empleados..."):
-                # --- INICIO: LLAMADA A FUNCIÓN MODIFICADA ---
                 employee_overtime = calculate_employee_overtime(df, st.session_state.selections, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
-                # --- FIN: LLAMADA A FUNCIÓN MODIFICADA ---
                 if not employee_overtime.empty:
                     st.header(f'Top {top_n_employees} Empleados con Mayor Horas Extras')
                     top_costo_empleados, top_cantidad_empleados = employee_overtime.nlargest(top_n_employees, 'Total_Costos'), employee_overtime.nlargest(top_n_employees, 'Total_Cantidades')
