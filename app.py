@@ -5,6 +5,7 @@ import io
 import numpy as np
 from datetime import datetime
 import streamlit.components.v1 as components
+import plotly.express as px
 
 # --- Configuración de la página ---
 st.set_page_config(layout="wide")
@@ -53,9 +54,9 @@ p, div, span, label, li, h1, h2, h3, h4, h5, h6 {
 }
 
 /* --- Redondear esquinas de los gráficos --- */
-[data-testid="stAltairChart"] {
+[data-testid="stAltairChart"], [data-testid="stPlotlyChart"] {
     border-radius: 8px;
-    overflow: hidden; /* Esto es clave para que el contenido del gráfico no se salga de los bordes redondeados */
+    overflow: hidden;
 }
 
 /* Estilo consistente para títulos y subtítulos */
@@ -83,7 +84,7 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
 }
 .stDataFrame thead th {
     background-color: var(--primary-color);
-    color: white; /* El texto aquí sí debe ser blanco */
+    color: white;
     font-weight: bold;
     text-align: left;
     padding: 14px 16px;
@@ -100,7 +101,7 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
     padding: 12px 16px;
     text-align: right;
     border-bottom: 1px solid #e0e0e0;
-    color: #333; /* Asegurar color oscuro en celdas */
+    color: #333;
 }
 .stDataFrame tbody td:first-child {
     text-align: left;
@@ -110,7 +111,7 @@ h3 { font-size: 1.3rem; color: #5a5a5a;}
 /* --- BOTONES DE DESCARGA --- */
 div[data-testid="stDownloadButton"] button {
     background-color: var(--primary-color);
-    color: white; /* El texto aquí sí debe ser blanco */
+    color: white;
     font-weight: bold;
     padding: 0.6rem 1rem;
     border-radius: 0.5rem;
@@ -170,11 +171,15 @@ def format_number_es(num, decimals=2):
     s = f"{num:,.{decimals}f}"
     return s.replace(",", "TEMP").replace(".", ",").replace("TEMP", ".")
 
+def format_currency_es(num):
+    if pd.isna(num) or not isinstance(num, (int, float, np.number)): return ""
+    return f"$ {num:,.2f}".replace(",", "TEMP").replace(".", ",").replace("TEMP", ".")
+
 def create_format_dict(df):
     numeric_cols = df.select_dtypes(include=np.number).columns
     formatters = {}
     for col in numeric_cols:
-        if any(keyword in col for keyword in ['Cant', 'Q', 'Total_Cantidades']) or ('int' in str(df[col].dtype)):
+        if any(keyword in col for keyword in ['Cant', 'Q', 'Total_Cantidades', 'Cantidad Total']) or ('int' in str(df[col].dtype)):
             formatters[col] = lambda x: format_number_es(x, 0)
         else:
             formatters[col] = lambda x: format_number_es(x, 2)
@@ -189,6 +194,15 @@ def apply_filters(full_df, selections):
         if values:
             _df = _df[_df[col].isin(values)]
     return _df
+
+@st.cache_data
+def load_coords_from_url(url):
+    try:
+        df = pd.read_csv(url, encoding='latin-1')
+        return df
+    except Exception as e:
+        st.error(f"Error al cargar el archivo de coordenadas desde GitHub: {e}")
+        return pd.DataFrame()
 
 @st.cache_data
 def calculate_monthly_trends(full_df, selections, cost_cols_map, quant_cols_map, selected_cost_keys, selected_quant_keys):
@@ -302,11 +316,9 @@ def load_and_clean_data(uploaded_file):
         if col not in df_excel.columns: df_excel[col] = 'no disponible'
         df_excel[col] = df_excel[col].astype(str).str.strip().replace(['None', 'nan', ''], 'no disponible')
     
-    # --- INICIO DE LA CORRECCIÓN DEFINITIVA DE DATOS ---
     if 'Sexo' in df_excel.columns:
         valid_sexo = ['Masculino', 'Femenino']
         df_excel['Sexo'] = df_excel['Sexo'].apply(lambda x: x if x in valid_sexo else 'no disponible')
-    # --- FIN DE LA CORRECCIÓN DEFINITIVA DE DATOS ---
 
     for col_to_int in ['CECO', 'Nivel']:
         if col_to_int in df_excel.columns:
@@ -323,10 +335,12 @@ st.title('📊 Dashboard de Horas Extras HE_2025')
 st.subheader('Análisis Interactivo de Costos y Cantidades de Horas Extras')
 
 uploaded_file = st.file_uploader("📂 Cargue aquí su archivo Excel de Horas Extras", type=["xlsx"])
+COORDS_URL = "https://raw.githubusercontent.com/Tincho2002/dotacion_assa_2025/main/coordenadas.csv"
 
 if uploaded_file is not None:
     with st.spinner('Procesando archivo...'):
         df = load_and_clean_data(uploaded_file)
+        df_coords = load_coords_from_url(COORDS_URL)
 
     if df.empty:
         st.error("El archivo cargado está vacío o no se pudo procesar. Verifique el contenido y el formato.")
@@ -340,7 +354,6 @@ if uploaded_file is not None:
     quantity_columns_options = {'Cantidad HE 50': 'Cantidad HE 50', 'Cant HE al 50 Sabados': 'Cant HE al 50 Sabados', 'Cantidad HE 100': 'Cantidad HE 100', 'Cantidad HE FC': 'Cantidad HE FC'}
     filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
     
-    # --- INICIO LÓGICA DE FILTROS REESCRITA (SIN CASCADA) ---
     if 'selections' not in st.session_state:
         st.session_state.selections = {col: [] for col in filter_cols}
 
@@ -359,18 +372,11 @@ if uploaded_file is not None:
 
     for col in filter_cols:
         options = sorted(df[col].dropna().unique().tolist())
-        # Excluir 'no disponible' de la lista de opciones para todos los filtros.
         options = [opt for opt in options if opt != 'no disponible']
-        
-        st.session_state.selections[col] = st.sidebar.multiselect(
-            f'Selecciona {col}(s):', 
-            options, 
-            default=st.session_state.selections.get(col, [])
-        )
+        st.session_state.selections[col] = st.sidebar.multiselect(f'Selecciona {col}(s):', options, default=st.session_state.selections.get(col, []))
 
     filtered_df = apply_filters(df, st.session_state.selections)
-    # --- FIN LÓGICA DE FILTROS REESCRITA ---
-
+    
     top_n_employees = st.sidebar.slider('Mostrar Top N Empleados:', 5, 50, 10)
     st.sidebar.markdown("---")
     st.sidebar.subheader("Selección de Tipos de Horas Extras")
@@ -380,7 +386,7 @@ if uploaded_file is not None:
     
     st.info(f"Mostrando **{format_number_es(len(filtered_df), 0)}** registros según los filtros aplicados.")
 
-    # --- INICIO DE LA SECCIÓN MODIFICADA: TARJETA DE RESUMEN ANIMADA (v3 - Definitiva) ---
+    # --- TARJETA DE RESUMEN ANIMADA ---
     if not filtered_df.empty and 'Mes' in filtered_df.columns:
         try:
             latest_month_str = filtered_df['Mes'].dropna().max()
@@ -394,78 +400,28 @@ if uploaded_file is not None:
                 cantidad_100 = df_last_month.get('Cantidad HE 100', pd.Series(0)).sum()
                 costo_fc = df_last_month.get('Importe HE Fc', pd.Series(0)).sum()
                 cantidad_fc = df_last_month.get('Cantidad HE FC', pd.Series(0)).sum()
-
                 total_costo_mes = costo_50 + costo_50_sab + costo_100 + costo_fc
                 total_cantidad_mes = cantidad_50 + cantidad_50_sab + cantidad_100 + cantidad_fc
-
                 month_dt = datetime.strptime(latest_month_str, '%Y-%m')
                 meses_espanol = {1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL", 5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO", 9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE"}
                 month_name = f"{meses_espanol.get(month_dt.month, '')} {month_dt.year}"
 
                 card_html = f"""
                 <style>
-                    .summary-card {{
-                        background-color: #f8f7fc;
-                        border-radius: 8px;
-                        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-                        padding: 1.5rem;
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-                    }}
-                    .summary-card * {{
-                        font-family: inherit !important;
-                    }}
-                    .summary-header {{
-                        text-align: center;
-                        font-size: 1.2rem;
-                        font-weight: 600;
-                        margin-bottom: 1.5rem;
-                        border-bottom: 2px solid #e0e0e0;
-                        padding-bottom: 1rem;
-                        color: #6C5CE7 !important;
-                    }}
-                    .summary-totals {{
-                        display: flex;
-                        justify-content: space-around;
-                        gap: 1rem;
-                        margin-bottom: 1.5rem;
-                    }}
-                    .summary-main-kpi {{
-                        text-align: center;
-                    }}
-                    .summary-main-kpi .value {{
-                        font-size: 2.5rem;
-                        font-weight: 700;
-                        color: #6C5CE7;
-                    }}
-                    .summary-main-kpi .label {{
-                        font-size: 1rem;
-                        color: #5a5a5a;
-                    }}
-                    .summary-breakdown {{
-                        display: grid;
-                        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                        gap: 1rem;
-                    }}
-                    .summary-sub-kpi {{
-                        background-color: #ffffff;
-                        padding: 1rem;
-                        border-radius: 6px;
-                        border: 1px solid #e0e0e0;
-                        text-align: center;
-                    }}
-                    .summary-sub-kpi .type {{
-                        font-weight: 600;
-                        font-size: 0.9rem;
-                        margin-bottom: 0.5rem;
-                    }}
-                    .summary-sub-kpi .value-cost, .summary-sub-kpi .value-qty {{
-                        font-size: 1.25rem;
-                        font-weight: 600;
-                    }}
+                    .summary-card {{ background-color: #f8f7fc; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 1.5rem; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important; }}
+                    .summary-card * {{ font-family: inherit !important; }}
+                    .summary-header {{ text-align: center; font-size: 1.2rem; font-weight: 600; margin-bottom: 1.5rem; border-bottom: 2px solid #e0e0e0; padding-bottom: 1rem; color: #6C5CE7 !important; }}
+                    .summary-totals {{ display: flex; justify-content: space-around; gap: 1rem; margin-bottom: 1.5rem; }}
+                    .summary-main-kpi {{ text-align: center; }}
+                    .summary-main-kpi .value {{ font-size: 2.5rem; font-weight: 700; color: #6C5CE7; }}
+                    .summary-main-kpi .label {{ font-size: 1rem; color: #5a5a5a; }}
+                    .summary-breakdown {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }}
+                    .summary-sub-kpi {{ background-color: #ffffff; padding: 1rem; border-radius: 6px; border: 1px solid #e0e0e0; text-align: center; }}
+                    .summary-sub-kpi .type {{ font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; }}
+                    .summary-sub-kpi .value-cost, .summary-sub-kpi .value-qty {{ font-size: 1.25rem; font-weight: 600; }}
                     .summary-sub-kpi .value-cost {{ color: #2a7a2a; }}
                     .summary-sub-kpi .value-qty {{ color: #3a3a9a; }}
                 </style>
-
                 <div class="summary-card">
                     <div class="summary-header">RESUMEN MENSUAL: {month_name}</div>
                     <div class="summary-totals">
@@ -501,66 +457,40 @@ if uploaded_file is not None:
                         </div>
                     </div>
                 </div>
-
                 <script>
                     function animateValue(obj, start, end, duration) {{
                         let startTimestamp = null;
                         const type = obj.getAttribute('data-type') || 'number';
                         const suffix = obj.getAttribute('data-suffix') || '';
                         const decimals = parseInt(obj.getAttribute('data-decimals')) || 0;
-
-                        const currencyFormatter = new Intl.NumberFormat('es-AR', {{
-                            style: 'currency',
-                            currency: 'ARS',
-                            minimumFractionDigits: decimals,
-                            maximumFractionDigits: decimals,
-                        }});
-
-                        const numberFormatter = new Intl.NumberFormat('es-AR', {{
-                            minimumFractionDigits: decimals,
-                            maximumFractionDigits: decimals,
-                        }});
-
+                        const currencyFormatter = new Intl.NumberFormat('es-AR', {{ style: 'currency', currency: 'ARS', minimumFractionDigits: decimals, maximumFractionDigits: decimals }});
+                        const numberFormatter = new Intl.NumberFormat('es-AR', {{ minimumFractionDigits: decimals, maximumFractionDigits: decimals }});
                         const step = (timestamp) => {{
                             if (!startTimestamp) startTimestamp = timestamp;
                             const progress = Math.min((timestamp - startTimestamp) / duration, 1);
                             const currentVal = progress * (end - start) + start;
-
                             let formattedVal;
-                            if (type === 'currency') {{
-                                formattedVal = currencyFormatter.format(currentVal).replace(/^ARS\\s/, '$');
-                            }} else {{
-                                formattedVal = numberFormatter.format(currentVal);
-                            }}
-
+                            if (type === 'currency') {{ formattedVal = currencyFormatter.format(currentVal).replace(/^ARS\\s/, '$'); }} else {{ formattedVal = numberFormatter.format(currentVal); }}
                             obj.innerHTML = formattedVal + suffix;
-
-                            if (progress < 1) {{
-                                window.requestAnimationFrame(step);
-                            }}
+                            if (progress < 1) {{ window.requestAnimationFrame(step); }}
                         }};
                         window.requestAnimationFrame(step);
                     }}
-
                     const counters = document.querySelectorAll('[data-target]');
-                    counters.forEach(counter => {{
-                        counter.innerHTML = '';
-                        const target = +counter.getAttribute('data-target');
-                        setTimeout(() => animateValue(counter, 0, target, 1500), 100);
-                    }});
+                    counters.forEach(counter => {{ counter.innerHTML = ''; const target = +counter.getAttribute('data-target'); setTimeout(() => animateValue(counter, 0, target, 1500), 100); }});
                 </script>
                 """
                 components.html(card_html, height=420)
                 st.markdown("<br>", unsafe_allow_html=True)
-
         except Exception as e:
             st.warning(f"No se pudo generar el resumen del último mes. Error: {e}")
-    # --- FIN DE LA SECCIÓN MODIFICADA ---
 
+    # --- NUEVA ESTRUCTURA DE PESTAÑAS (CON MAPA) ---
+    tab_list = st.tabs(["📈 Resumen y Tendencias", "🗺️ Mapa de Distribución", "🏢 Desglose Organizacional", "👤 Empleados Destacados", "⚖️ Valor Hora", "📋 Datos Brutos"])
+    
+    tab_resumen, tab_mapa, tab_desglose_org, tab_empleados, tab_valor_hora, tab_datos_brutos = tab_list
 
-    tab1, tab2, tab3, tab_valor_hora, tab4 = st.tabs(["📈 Resumen y Tendencias", "🏢 Desglose Organizacional", "👤 Empleados Destacados", "⚖️ Valor Hora", "📋 Datos Brutos"])
-
-    with tab1:
+    with tab_resumen:
         with st.container(border=True):
             st.header('Tendencias Mensuales de Horas Extras')
             st.markdown("<br>", unsafe_allow_html=True)
@@ -570,7 +500,6 @@ if uploaded_file is not None:
                     total_row = monthly_trends_agg.sum(numeric_only=True).to_frame().T
                     total_row['Mes'] = 'TOTAL'
                     monthly_trends_agg_with_total = pd.concat([monthly_trends_agg, total_row], ignore_index=True)
-                    
                     cost_color_domain, quantity_color_domain = list(cost_columns_options.keys()), list(quantity_columns_options.keys())
                     color_range = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
                     col1, col2 = st.columns(2)
@@ -582,9 +511,7 @@ if uploaded_file is not None:
                         bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero', scale=y_scale_cost, axis=alt.Axis(format='$,.0f')), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=cost_color_domain, range=color_range)))
                         line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)', scale=y_scale_cost, axis=alt.Axis(format='$,.0f')), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format='$,.2f')])
                         text_costos = line_costos.mark_text(align='center', baseline='bottom', dy=-10, color='black').encode(text=alt.Text('Total_Costos:Q', format='$,.0f'))
-
                         st.altair_chart(alt.layer(bars_costos, line_costos, text_costos).resolve_scale(y='shared').properties(title=alt.TitleParams('Costos Mensuales', anchor='middle')).interactive(), use_container_width=True)
-
                     with col2:
                         chart_data, max_quant = monthly_trends_agg, monthly_trends_agg['Total_Cantidades'].max()
                         y_scale_quant = alt.Scale(domain=[0, max_quant * 1.25]) if max_quant > 0 else alt.Scale()
@@ -593,13 +520,10 @@ if uploaded_file is not None:
                         bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Cantidad:Q', stack='zero', scale=y_scale_quant, axis=alt.Axis(format=',.0f')), color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=quantity_color_domain, range=color_range)))
                         line_cantidades = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Cantidades:Q', title='Cantidad', scale=y_scale_quant, axis=alt.Axis(format=',.0f')), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')])
                         text_cantidades = line_cantidades.mark_text(align='center', baseline='bottom', dy=-10, color='black').encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
-
                         st.altair_chart(alt.layer(bars_cantidades, line_cantidades, text_cantidades).resolve_scale(y='shared').properties(title=alt.TitleParams('Cantidades Mensuales', anchor='middle')).interactive(), use_container_width=True)
-
                     st.subheader('Tabla de Tendencias Mensuales')
                     st.dataframe(monthly_trends_agg_with_total.style.format(create_format_dict(monthly_trends_agg_with_total)), use_container_width=True)
                     generate_download_buttons(monthly_trends_agg_with_total, 'tendencias_mensuales', 'tab1_trends')
-
         with st.container(border=True):
             if not monthly_trends_agg.empty and len(monthly_trends_agg) > 1:
                 with st.spinner("Calculando variaciones mensuales..."):
@@ -608,31 +532,25 @@ if uploaded_file is not None:
                     st.markdown("<br>", unsafe_allow_html=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        min_var_cost = monthly_trends_for_var['Variacion_Costos_Abs'].min()
-                        max_var_cost = monthly_trends_for_var['Variacion_Costos_Abs'].max()
+                        min_var_cost, max_var_cost = monthly_trends_for_var['Variacion_Costos_Abs'].min(), monthly_trends_for_var['Variacion_Costos_Abs'].max()
                         padding_cost = (max_var_cost - min_var_cost) * 0.15
                         domain_cost = [min_var_cost - padding_cost, max_var_cost + padding_cost]
                         scale_var_cost = alt.Scale(domain=domain_cost)
-
                         base_var_costos = alt.Chart(monthly_trends_for_var).properties(title=alt.TitleParams('Variación Mensual de Costos', anchor='middle'))
                         bars_var_costos = base_var_costos.mark_bar().encode(x=alt.X('Mes'), y=alt.Y('Variacion_Costos_Abs', title='Variación de Costos ($)', axis=alt.Axis(format='$,.0f'), scale=scale_var_cost), color=alt.condition(alt.datum.Variacion_Costos_Abs > 0, alt.value('#2ca02c'), alt.value('#d62728')))
                         text_pos_costos = bars_var_costos.mark_text(align='center', baseline='bottom', dy=-4, color='#333').encode(text=alt.Text('Variacion_Costos_Abs:Q', format='$,.0f')).transform_filter(alt.datum.Variacion_Costos_Abs >= 0)
                         text_neg_costos = bars_var_costos.mark_text(align='center', baseline='top', dy=4, color='#333').encode(text=alt.Text('Variacion_Costos_Abs:Q', format='$,.0f')).transform_filter(alt.datum.Variacion_Costos_Abs < 0)
                         st.altair_chart((bars_var_costos + text_pos_costos + text_neg_costos).interactive(), use_container_width=True)
-
                     with col2:
-                        min_var_quant = monthly_trends_for_var['Variacion_Cantidades_Abs'].min()
-                        max_var_quant = monthly_trends_for_var['Variacion_Cantidades_Abs'].max()
+                        min_var_quant, max_var_quant = monthly_trends_for_var['Variacion_Cantidades_Abs'].min(), monthly_trends_for_var['Variacion_Cantidades_Abs'].max()
                         padding_quant = (max_var_quant - min_var_quant) * 0.15
                         domain_quant = [min_var_quant - padding_quant, max_var_quant + padding_quant]
                         scale_var_quant = alt.Scale(domain=domain_quant)
-
                         base_var_cant = alt.Chart(monthly_trends_for_var).properties(title=alt.TitleParams('Variación Mensual de Cantidades', anchor='middle'))
                         bars_var_cant = base_var_cant.mark_bar().encode(x=alt.X('Mes'), y=alt.Y('Variacion_Cantidades_Abs', title='Variación de Cantidades', axis=alt.Axis(format=',.0f'), scale=scale_var_quant), color=alt.condition(alt.datum.Variacion_Cantidades_Abs > 0, alt.value('#2ca02c'), alt.value('#d62728')))
                         text_pos_cant = bars_var_cant.mark_text(align='center', baseline='bottom', dy=-4, color='#333').encode(text=alt.Text('Variacion_Cantidades_Abs:Q', format=',.0f')).transform_filter(alt.datum.Variacion_Cantidades_Abs >= 0)
                         text_neg_cant = bars_var_cant.mark_text(align='center', baseline='top', dy=4, color='#333').encode(text=alt.Text('Variacion_Cantidades_Abs:Q', format=',.0f')).transform_filter(alt.datum.Variacion_Cantidades_Abs < 0)
                         st.altair_chart((bars_var_cant + text_pos_cant + text_neg_cant).interactive(), use_container_width=True)
-
                     st.subheader('Tabla de Variaciones Mensuales')
                     df_variaciones = monthly_trends_for_var[['Mes', 'Total_Costos', 'Variacion_Costos_Abs', 'Variacion_Costos_Pct', 'Total_Cantidades', 'Variacion_Cantidades_Abs', 'Variacion_Cantidades_Pct']]
                     formatters_var = create_format_dict(df_variaciones)
@@ -640,7 +558,58 @@ if uploaded_file is not None:
                     st.dataframe(df_variaciones.style.format(formatters_var), use_container_width=True)
                     generate_download_buttons(df_variaciones, 'variaciones_mensuales', 'tab1_var')
 
-    with tab2:
+    with tab_mapa:
+        st.header("Distribución Geográfica de Horas Extras")
+        if filtered_df.empty:
+            st.warning("No hay datos para mostrar en el mapa con los filtros seleccionados.")
+        else:
+            df_mapa_display = filtered_df.copy()
+            
+            # --- Lógica para determinar el mes a mostrar ---
+            latest_month_map = ""
+            # Si hay meses seleccionados en el filtro, usa el último de la lista ordenada
+            if st.session_state.selections.get('Mes'):
+                all_months_sorted = sorted(df['Mes'].dropna().unique())
+                selected_months_sorted = [m for m in all_months_sorted if m in st.session_state.selections['Mes']]
+                if selected_months_sorted:
+                    latest_month_map = selected_months_sorted[-1]
+            # Si no hay meses en el filtro, usa el último mes de todo el dataset
+            else:
+                latest_month_map = df['Mes'].dropna().max()
+
+            if pd.notna(latest_month_map):
+                df_mapa_display = df[df['Mes'] == latest_month_map] # Usa el df original para asegurar datos completos del mes
+                month_dt_map = datetime.strptime(latest_month_map, '%Y-%m')
+                meses_espanol = {1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL", 5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO", 9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE"}
+                month_name_map = f"{meses_espanol.get(month_dt_map.month, '')} {month_dt_map.year}"
+                st.subheader(f"Mostrando datos para el período: {month_name_map}")
+            
+            map_style_options = {"Satélite con Calles": "satellite-streets", "Mapa de Calles": "open-street-map", "Estilo Claro": "carto-positron"}
+            selected_style_name = st.selectbox("Selecciona el estilo del mapa:", options=list(map_style_options.keys()), key="map_style_selector")
+            selected_mapbox_style = map_style_options[selected_style_name]
+            
+            col_map, col_table = st.columns([3, 2])
+            with col_map:
+                df_mapa_agg = df_mapa_display.groupby('Ubicación').agg(Costo_Total=('Total ($)', 'sum'), Cantidad_Total=('Total (Q)', 'sum')).reset_index()
+                df_mapa_data = pd.merge(df_mapa_agg, df_coords, left_on='Ubicación', right_on="Distrito", how="left")
+                df_mapa_data.dropna(subset=['Latitud', 'Longitud'], inplace=True)
+                if df_mapa_data.empty:
+                    st.warning("No se encontraron coordenadas para las ubicaciones seleccionadas.")
+                else:
+                    mapbox_access_token = "pk.eyJ1Ijoic2FuZHJhcXVldmVkbyIsImEiOiJjbWYzOGNkZ2QwYWg0MnFvbDJucWc5d3VwIn0.bz6E-qxAwk6ZFPYohBsdMw"
+                    px.set_mapbox_access_token(mapbox_access_token)
+                    fig = px.scatter_mapbox(df_mapa_data, lat="Latitud", lon="Longitud", size="Cantidad_Total", color="Costo_Total", hover_name="Distrito", hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, color_continuous_scale=px.colors.sequential.Plasma, size_max=50, mapbox_style=selected_mapbox_style, zoom=6, center={"lat": -32.5, "lon": -61.5})
+                    fig.update_layout(margin={"r":0, "t":0, "l":0, "b":0})
+                    st.plotly_chart(fig, use_container_width=True)
+            with col_table:
+                st.markdown("##### Costos y Cantidades por Distrito")
+                table_data = df_mapa_agg.rename(columns={'Ubicación': 'Distrito', 'Costo_Total': 'Costo Total', 'Cantidad_Total': 'Cantidad Total'})
+                table_data.sort_values(by='Costo Total', ascending=False, inplace=True)
+                total_row = pd.DataFrame({'Distrito': ['**TOTAL GENERAL**'], 'Costo Total': [table_data['Costo Total'].sum()], 'Cantidad Total': [table_data['Cantidad Total'].sum()]})
+                df_final_table = pd.concat([table_data, total_row], ignore_index=True)
+                st.dataframe(df_final_table.style.format({'Costo Total': format_currency_es, 'Cantidad Total': lambda x: format_number_es(x, 0)}), use_container_width=True, height=500, hide_index=True)
+
+    with tab_desglose_org:
         st.header('Desglose Organizacional Detallado')
         dimension_options = {'Gerencia y Ministerio': ['Gerencia', 'Ministerio'], 'Gerencia y Sexo': ['Gerencia', 'Sexo'], 'Ministerio y Sexo': ['Ministerio', 'Sexo'], 'Nivel y Sexo': ['Nivel', 'Sexo'], 'Función y Sexo': ['Función', 'Sexo']}
         selected_dimension_key = st.selectbox('Selecciona una vista de desglose:', options=list(dimension_options.keys()))
@@ -648,12 +617,7 @@ if uploaded_file is not None:
         primary_col, secondary_col = group_cols[0], group_cols[1]
         with st.spinner(f"Generando desglose por {selected_dimension_key}..."):
             df_grouped = calculate_grouped_aggregation(df, st.session_state.selections, group_cols, cost_columns_options, quantity_columns_options, cost_types_selection, quantity_types_selection)
-            
-            df_grouped_chart = df_grouped[
-                (df_grouped[primary_col] != 'no disponible') & 
-                (df_grouped[secondary_col] != 'no disponible')
-            ].copy()
-            
+            df_grouped_chart = df_grouped[(df_grouped[primary_col] != 'no disponible') & (df_grouped[secondary_col] != 'no disponible')].copy()
             st.subheader(f'Distribución por {selected_dimension_key}')
             if df_grouped_chart.empty:
                 st.warning(f"No hay datos para '{selected_dimension_key}' con los filtros seleccionados.")
@@ -662,55 +626,27 @@ if uploaded_file is not None:
                     total_row = df_grouped.sum(numeric_only=True).to_frame().T
                     total_row[primary_col], total_row[secondary_col] = 'TOTAL', ''
                     df_grouped_with_total = pd.concat([df_grouped, total_row], ignore_index=True)
-                    
                     secondary_domain = df_grouped_chart[secondary_col].unique().tolist()
                     palette = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
                     color_scale = alt.Scale(domain=secondary_domain, range=palette[:len(secondary_domain)])
-                    
                     col1, col2 = st.columns(2)
                     with col1:
                         sort_order = df_grouped_chart.groupby(primary_col)['Total_Costos'].sum().sort_values(ascending=False).index.tolist()
                         y_axis = alt.Y(f'{primary_col}:N', sort=sort_order, title=primary_col)
-                        
-                        bars = alt.Chart(df_grouped_chart).mark_bar().encode(
-                            x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)", axis=alt.Axis(format='$,.0f')),
-                            y=y_axis,
-                            color=alt.Color(f'{secondary_col}:N', 
-                                            legend=alt.Legend(orient="bottom", title=secondary_col, columns=4, labelLimit=0),
-                                            scale=color_scale),
-                            tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Costos):Q', format='$,.2f', title='Costo')]
-                        )
-                        total_labels = alt.Chart(df_grouped_chart).transform_aggregate(total='sum(Total_Costos)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(
-                            x='total:Q',
-                            y=y_axis,
-                            text=alt.Text('total:Q', format='$,.0f')
-                        )
+                        bars = alt.Chart(df_grouped_chart).mark_bar().encode(x=alt.X('sum(Total_Costos):Q', title="Total Costos ($)", axis=alt.Axis(format='$,.0f')), y=y_axis, color=alt.Color(f'{secondary_col}:N', legend=alt.Legend(orient="bottom", title=secondary_col, columns=4, labelLimit=0), scale=color_scale), tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Costos):Q', format='$,.2f', title='Costo')])
+                        total_labels = alt.Chart(df_grouped_chart).transform_aggregate(total='sum(Total_Costos)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(x='total:Q', y=y_axis, text=alt.Text('total:Q', format='$,.0f'))
                         st.altair_chart(alt.layer(bars, total_labels).properties(title='Costos').interactive(), use_container_width=True)
-
                     with col2:
                         sort_order = df_grouped_chart.groupby(primary_col)['Total_Cantidades'].sum().sort_values(ascending=False).index.tolist()
                         y_axis = alt.Y(f'{primary_col}:N', sort=sort_order, title=primary_col)
-
-                        bars = alt.Chart(df_grouped_chart).mark_bar().encode(
-                            x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades", axis=alt.Axis(format=',.0f')),
-                            y=y_axis,
-                            color=alt.Color(f'{secondary_col}:N', 
-                                            legend=alt.Legend(orient="bottom", title=secondary_col, columns=4, labelLimit=0),
-                                            scale=color_scale),
-                            tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Cantidades):Q', format=',.0f', title='Cantidad')]
-                        )
-                        total_labels = alt.Chart(df_grouped_chart).transform_aggregate(total='sum(Total_Cantidades)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(
-                            x='total:Q',
-                            y=y_axis,
-                            text=alt.Text('total:Q', format=',.0f')
-                        )
+                        bars = alt.Chart(df_grouped_chart).mark_bar().encode(x=alt.X('sum(Total_Cantidades):Q', title="Total Cantidades", axis=alt.Axis(format=',.0f')), y=y_axis, color=alt.Color(f'{secondary_col}:N', legend=alt.Legend(orient="bottom", title=secondary_col, columns=4, labelLimit=0), scale=color_scale), tooltip=[primary_col, secondary_col, alt.Tooltip('sum(Total_Cantidades):Q', format=',.0f', title='Cantidad')])
+                        total_labels = alt.Chart(df_grouped_chart).transform_aggregate(total='sum(Total_Cantidades)', groupby=[primary_col]).mark_text(align='left', baseline='middle', dx=3).encode(x='total:Q', y=y_axis, text=alt.Text('total:Q', format=',.0f'))
                         st.altair_chart(alt.layer(bars, total_labels).properties(title='Cantidades').interactive(), use_container_width=True)
-
                     st.subheader('Tabla de Distribución')
                     st.dataframe(df_grouped_with_total.style.format(create_format_dict(df_grouped_with_total)), use_container_width=True)
                     generate_download_buttons(df_grouped_with_total, f'dist_{selected_dimension_key.replace(" y ", "_").lower()}', f'tab2_{selected_dimension_key}')
 
-    with tab3:
+    with tab_empleados:
         with st.container(border=True):
             with st.spinner("Calculando ranking de empleados..."):
                 employee_overtime = calculate_employee_overtime(df, st.session_state.selections, cost_columns_options, quantity_columns_options, cost_types_selection, quantity_types_selection)
@@ -751,7 +687,7 @@ if uploaded_file is not None:
                 else:
                     st.warning("No hay datos de valor por hora con los filtros actuales o las columnas no existen.")
 
-    with tab4:
+    with tab_datos_brutos:
         with st.container(border=True):
             st.header('Tabla de Datos Brutos Filtrados')
             st.dataframe(filtered_df.style.format(create_format_dict(filtered_df)), use_container_width=True)
