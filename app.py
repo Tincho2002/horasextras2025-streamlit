@@ -812,6 +812,29 @@ if uploaded_file is not None:
             
             st.markdown("---")
 
+            # --- INICIO: MAPA ÚNICO INTERACTIVO ---
+            st.subheader(f"Mapa Interactivo Individual para el Período: {month_name_map}")
+            
+            if not df_mapa_data.empty:
+                selected_style_single_name = st.selectbox("Selecciona el estilo del mapa:", options=list(map_style_options.keys()), key="map_style_selector_single", index=0)
+                selected_mapbox_style_single = map_style_options[selected_style_single_name]
+                
+                single_map_col, single_table_col = st.columns([3, 2])
+                
+                with single_map_col:
+                    fig_single = px.scatter_mapbox(df_mapa_data, lat="Latitud", lon="Longitud", size="Cantidad_Total", color="Costo_Total", hover_name="Distrito", hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, color_continuous_scale=px.colors.sequential.Plasma, size_max=50, mapbox_style=selected_mapbox_style_single, zoom=6, center={"lat": -32.5, "lon": -61.5})
+                    fig_single.update_layout(margin={"r":0, "t":0, "l":0, "b":0}, height=600)
+                    st.plotly_chart(fig_single, use_container_width=True)
+
+                with single_table_col:
+                    st.markdown("##### Costos y Cantidades por Distrito")
+                    table_data_single = df_mapa_agg.rename(columns={'Ubicación': 'Distrito', 'Costo_Total': 'Costo Total', 'Cantidad_Total': 'Cantidad Total'})
+                    table_data_single.sort_values(by='Costo Total', ascending=False, inplace=True)
+                    total_row_single = pd.DataFrame({'Distrito': ['**TOTAL GENERAL**'], 'Costo Total': [table_data_single['Costo Total'].sum()], 'Cantidad Total': [table_data_single['Cantidad Total'].sum()]})
+                    df_final_table_single = pd.concat([table_data_single, total_row_single], ignore_index=True)
+                    st.dataframe(df_final_table_single.style.format({'Costo Total': format_currency_es, 'Cantidad Total': lambda x: format_number_es(x, 0)}), use_container_width=True, height=600, hide_index=True)
+            # --- FIN: MAPA ÚNICO INTERACTIVO ---
+
     with tab_desglose_org:
         st.header('Desglose Organizacional Detallado')
         dimension_options = {'Gerencia y Ministerio': ['Gerencia', 'Ministerio'], 'Gerencia y Sexo': ['Gerencia', 'Sexo'], 'Ministerio y Sexo': ['Ministerio', 'Sexo'], 'Nivel y Sexo': ['Nivel', 'Sexo'], 'Función y Sexo': ['Función', 'Sexo']}
