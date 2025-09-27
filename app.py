@@ -682,8 +682,8 @@ if uploaded_file is not None:
                             fig2 = generate_map_figure(df_mapa_data, map_style_options[style2_name])
                             
                             if fig1 and fig2:
-                                img1_bytes = fig1.to_image(format="png", width=1200, height=1000, scale=2)
-                                img2_bytes = fig2.to_image(format="png", width=1200, height=1000, scale=2)
+                                img1_bytes = fig1.to_image(format="png", width=1200, height=950, scale=2)
+                                img2_bytes = fig2.to_image(format="png", width=1200, height=950, scale=2)
                                 
                                 img1_pil = Image.open(io.BytesIO(img1_bytes))
                                 img2_pil = Image.open(io.BytesIO(img2_bytes))
