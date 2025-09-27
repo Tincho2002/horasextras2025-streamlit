@@ -173,7 +173,7 @@ def format_number_es(num, decimals=2):
 
 def format_currency_es(num):
     if pd.isna(num) or not isinstance(num, (int, float, np.number)): return ""
-    return f"$ {num:,.2f}".replace(",", "TEMP").replace(".", ",").replace("TEMP", ".")
+    return f"$ {format_number_es(num, 2)}"
 
 def create_format_dict(df):
     numeric_cols = df.select_dtypes(include=np.number).columns
@@ -492,7 +492,7 @@ if uploaded_file is not None:
                             const progress = Math.min((timestamp - startTimestamp) / duration, 1);
                             const currentVal = progress * (end - start) + start;
                             let formattedVal;
-                            if (type === 'currency') {{ formattedVal = currencyFormatter.format(currentVal).replace(/^ARS\\s/, '$'); }} else {{ formattedVal = numberFormatter.format(currentVal); }}
+                            if (type === 'currency') {{ formattedVal = currencyFormatter.format(currentVal).replace(/^ARS\\s/, '$ '); }} else {{ formattedVal = numberFormatter.format(currentVal); }}
                             obj.innerHTML = formattedVal + suffix;
                             if (progress < 1) {{ window.requestAnimationFrame(step); }}
                         }};
@@ -603,10 +603,7 @@ if uploaded_file is not None:
                 month_name_map = f"{meses_espanol.get(month_dt_map.month, '')} {month_dt_map.year}"
                 st.subheader(f"Mostrando datos para el período: {month_name_map}")
             
-            map_style_options = {"Satélite con Calles": "satellite-streets", "Mapa de Calles": "open-street-map", "Estilo Claro": "carto-positron"}
-            selected_style_name = st.selectbox("Selecciona el estilo del mapa:", options=list(map_style_options.keys()), key="map_style_selector")
-            selected_mapbox_style = map_style_options[selected_style_name]
-            
+            # --- INICIO: CÁLCULO DE DATOS AGREGADOS PARA EL MAPA Y KPIS ---
             selected_cost_cols = [cost_columns_options[k] for k in st.session_state.cost_types if k in cost_columns_options]
             selected_quant_cols = [quantity_columns_options[k] for k in st.session_state.quantity_types if k in quantity_columns_options]
             
@@ -627,6 +624,25 @@ if uploaded_file is not None:
                 Costo_Total=('Costo_Total_Dinamico', 'sum'), 
                 Cantidad_Total=('Cantidad_Total_Dinamica', 'sum')
             ).reset_index()
+            # --- FIN: CÁLCULO DE DATOS AGREGADOS ---
+
+            # --- INICIO: BLOQUE DE KPIS AÑADIDO ---
+            if not df_mapa_agg.empty:
+                total_costo_mapa = df_mapa_agg['Costo_Total'].sum()
+                total_cantidad_mapa = df_mapa_agg['Cantidad_Total'].sum()
+                ubicaciones_unicas = df_mapa_agg['Ubicación'].nunique()
+
+                st.markdown("<br>", unsafe_allow_html=True)
+                kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
+                kpi_col1.metric("💰 Costo Total (Período)", format_currency_es(total_costo_mapa))
+                kpi_col2.metric("⏱️ Cantidad Total (Período)", f"{format_number_es(total_cantidad_mapa, 0)} hs")
+                kpi_col3.metric("📍 Ubicaciones Activas", format_number_es(ubicaciones_unicas, 0))
+                st.markdown("---")
+            # --- FIN: BLOQUE DE KPIS AÑADIDO ---
+
+            map_style_options = {"Satélite con Calles": "satellite-streets", "Mapa de Calles": "open-street-map", "Estilo Claro": "carto-positron"}
+            selected_style_name = st.selectbox("Selecciona el estilo del mapa:", options=list(map_style_options.keys()), key="map_style_selector")
+            selected_mapbox_style = map_style_options[selected_style_name]
             
             col_map, col_table = st.columns([3, 2])
             with col_map:
@@ -655,6 +671,7 @@ if uploaded_file is not None:
                 total_row = pd.DataFrame({'Distrito': ['**TOTAL GENERAL**'], 'Costo Total': [table_data['Costo Total'].sum()], 'Cantidad Total': [table_data['Cantidad Total'].sum()]})
                 df_final_table = pd.concat([table_data, total_row], ignore_index=True)
                 st.dataframe(df_final_table.style.format({'Costo Total': format_currency_es, 'Cantidad Total': lambda x: format_number_es(x, 0)}), use_container_width=True, height=500, hide_index=True)
+
 
     with tab_desglose_org:
         st.header('Desglose Organizacional Detallado')
