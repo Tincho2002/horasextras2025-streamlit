@@ -654,9 +654,11 @@ if uploaded_file is not None:
                 with comp_col1:
                     sel_col1, sel_col2 = st.columns(2)
                     with sel_col1:
-                        selected_style_1_name = st.selectbox("Selecciona el estilo del mapa izquierdo:", options=list(map_style_options.keys()), key="map_style_selector_1", index=0)
-                    with sel_col2:
+                        #selected_style_1_name = st.selectbox("Selecciona el estilo del mapa izquierdo:", options=list(map_style_options.keys()), key="map_style_selector_1", index=0)
                         selected_style_2_name = st.selectbox("Selecciona el estilo del mapa derecho:", options=list(map_style_options.keys()), key="map_style_selector_2", index=1)
+                    with sel_col2:
+                        #selected_style_2_name = st.selectbox("Selecciona el estilo del mapa derecho:", options=list(map_style_options.keys()), key="map_style_selector_2", index=1)
+                        selected_style_1_name = st.selectbox("Selecciona el estilo del mapa izquierdo:", options=list(map_style_options.keys()), key="map_style_selector_1", index=0)
                         
                     selected_mapbox_style_1 = map_style_options[selected_style_1_name]
                     selected_mapbox_style_2 = map_style_options[selected_style_2_name]
