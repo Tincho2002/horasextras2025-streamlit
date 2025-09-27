@@ -7,6 +7,8 @@ from datetime import datetime
 import streamlit.components.v1 as components
 import plotly.express as px
 import base64
+from PIL import Image
+from streamlit_image_comparison import image_comparison
 
 # --- Configuración de la página ---
 st.set_page_config(layout="wide")
@@ -654,153 +656,48 @@ if uploaded_file is not None:
                 with comp_col1:
                     sel_col1, sel_col2 = st.columns(2)
                     with sel_col1:
-                        selected_style_1_name = st.selectbox("Selecciona el estilo del mapa izquierdo:", options=list(map_style_options.keys()), key="map_style_selector_1", index=0)
+                        style1_name = st.selectbox("Selecciona el estilo del mapa izquierdo:", options=list(map_style_options.keys()), index=0, key="map_style1")
                     with sel_col2:
-                        selected_style_2_name = st.selectbox("Selecciona el estilo del mapa derecho:", options=list(map_style_options.keys()), key="map_style_selector_2", index=1)
+                        style2_name = st.selectbox("Selecciona el estilo del mapa derecho:", options=list(map_style_options.keys()), index=1, key="map_style2")
                         
-                    selected_mapbox_style_1 = map_style_options[selected_style_1_name]
-                    selected_mapbox_style_2 = map_style_options[selected_style_2_name]
-                    
-                    mapbox_access_token = "pk.eyJ1Ijoic2FuZHJhcXVldmVkbyIsImEiOiJjbWYzOGNkZ2QwYWg0MnFvbDJucWc5d3VwIn0.bz6E-qxAwk6ZFPYohBsdMw"
-                    px.set_mapbox_access_token(mapbox_access_token)
+                    def generate_map_figure(df_plot_data, mapbox_style):
+                        if df_plot_data.empty:
+                            return None
+                        mapbox_access_token = "pk.eyJ1Ijoic2FuZHJhcXVldmVkbyIsImEiOiJjbWYzOGNkZ2QwYWg0MnFvbDJucWc5d3VwIn0.bz6E-qxAwk6ZFPYohBsdMw"
+                        px.set_mapbox_access_token(mapbox_access_token)
+                        fig = px.scatter_mapbox(
+                            df_plot_data, lat="Latitud", lon="Longitud", 
+                            size="Cantidad_Total", color="Costo_Total", 
+                            hover_name="Distrito", 
+                            hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, 
+                            color_continuous_scale=px.colors.sequential.Plasma, size_max=50, 
+                            mapbox_style=mapbox_style, zoom=6, center={"lat": -32.5, "lon": -61.5}
+                        )
+                        fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+                        return fig
 
-                    fig1 = px.scatter_mapbox(df_mapa_data, lat="Latitud", lon="Longitud", size="Cantidad_Total", color="Costo_Total", hover_name="Distrito", hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, color_continuous_scale=px.colors.sequential.Plasma, size_max=50, mapbox_style=selected_mapbox_style_1, zoom=6, center={"lat": -32.5, "lon": -61.5})
-                    fig1.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=600)
-                    img1_bytes = fig1.to_image(format="png")
-
-                    fig2 = px.scatter_mapbox(df_mapa_data, lat="Latitud", lon="Longitud", size="Cantidad_Total", color="Costo_Total", hover_name="Distrito", hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, color_continuous_scale=px.colors.sequential.Plasma, size_max=50, mapbox_style=selected_mapbox_style_2, zoom=6, center={"lat": -32.5, "lon": -61.5})
-                    fig2.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=600)
-                    img2_bytes = fig2.to_image(format="png")
-
-                    b64_img1 = base64.b64encode(img1_bytes).decode("utf-8")
-                    b64_img2 = base64.b64encode(img2_bytes).decode("utf-8")
-
-                    comparison_html = f"""
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <style>
-                    * {{box-sizing: border-box;}}
-                    .img-comp-container {{
-                        position: relative;
-                        height: 600px;
-                        overflow: hidden;
-                    }}
-                    .img-comp-img {{
-                        position: absolute;
-                        width: 100%;
-                        height: 100%;
-                        overflow: hidden;
-                    }}
-                    .img-comp-img img {{
-                        display: block;
-                        width: 100%;
-                        height: 100%;
-                        object-fit: cover;
-                    }}
-                    .img-comp-slider {{
-                        position: absolute;
-                        z-index: 9;
-                        cursor: ew-resize;
-                        width: 40px;
-                        height: 40px;
-                        background-color: #6C5CE7;
-                        opacity: 0.7;
-                        border-radius: 50%;
-                        border: 2px solid white;
-                    }}
-                    .img-comp-overlay {{
-                        height: 100%;
-                        width: 50%;
-                        overflow: hidden;
-                        position: absolute;
-                        top: 0;
-                        left: 0;
-                    }}
-                    </style>
-                    </head>
-                    <body>
-
-                    <div class="img-comp-container" id="image-comparison-container">
-                      <div class="img-comp-img">
-                        <img src="data:image/png;base64,{b64_img1}">
-                      </div>
-                      <div class="img-comp-img img-comp-overlay">
-                        <img src="data:image/png;base64,{b64_img2}">
-                      </div>
-                    </div>
-
-                    <script>
-                    function initComparisons() {{
-                      var x, i;
-                      x = document.getElementsByClassName("img-comp-container");
-                      for (i = 0; i < x.length; i++) {{
-                        compareImages(x[i]);
-                      }}
-                      function compareImages(img) {{
-                        var slider, clicked = 0, w, h;
-                        w = img.offsetWidth;
-                        h = img.offsetHeight;
-                        
-                        var overlay = img.getElementsByClassName("img-comp-overlay")[0];
-                        
-                        slider = document.createElement("DIV");
-                        slider.setAttribute("class", "img-comp-slider");
-                        img.appendChild(slider);
-                        
-                        slider.style.top = (h / 2) - (slider.offsetHeight / 2) + "px";
-                        
-                        function slideReady(e) {{
-                          e.preventDefault();
-                          clicked = 1;
-                          window.addEventListener("mousemove", slideMove);
-                          window.addEventListener("touchmove", slideMove);
-                        }}
-                        function slideFinish() {{
-                          clicked = 0;
-                        }}
-                        function slideMove(e) {{
-                          var pos;
-                          if (clicked == 0) return false;
-                          pos = getCursorPos(e)
-                          if (pos < 0) pos = 0;
-                          if (pos > w) pos = w;
-                          slide(pos);
-                        }}
-                        function getCursorPos(e) {{
-                          var a, x = 0;
-                          e = (e.changedTouches) ? e.changedTouches[0] : e;
-                          a = img.getBoundingClientRect();
-                          x = e.pageX - a.left;
-                          x = x - window.pageXOffset;
-                          return x;
-                        }}
-                        function slide(x) {{
-                          overlay.style.width = x + "px";
-                          slider.style.left = overlay.offsetWidth - (slider.offsetWidth / 2) + "px";
-                        }}
-
-                        slider.addEventListener("mousedown", slideReady);
-                        window.addEventListener("mouseup", slideFinish);
-                        slider.addEventListener("touchstart", slideReady);
-                        window.addEventListener("touchend", slideFinish);
-
-                        // Initial position
-                        slide(w / 2);
-                      }}
-                    }}
-                    // Ensure the DOM is loaded before running the script
-                    window.addEventListener('load', initComparisons);
-                    // Fallback for environments where 'load' might not fire as expected
-                    setTimeout(initComparisons, 100);
-                    </script>
-
-                    </body>
-                    </html>
-                    """
-                    st.components.v1.html(comparison_html, height=610)
-
+                    with st.spinner("Generando mapas para comparación..."):
+                        try:
+                            fig1 = generate_map_figure(df_mapa_data, map_style_options[style1_name])
+                            fig2 = generate_map_figure(df_mapa_data, map_style_options[style2_name])
+                            
+                            if fig1 and fig2:
+                                img1_bytes = fig1.to_image(format="png", width=1200, height=800, scale=2)
+                                img2_bytes = fig2.to_image(format="png", width=1200, height=800, scale=2)
+                                
+                                img1_pil = Image.open(io.BytesIO(img1_bytes))
+                                img2_pil = Image.open(io.BytesIO(img2_bytes))
+                                
+                                image_comparison(
+                                    img1=img1_pil,
+                                    img2=img2_pil,
+                                    label1=style1_name,
+                                    label2=style2_name,
+                                )
+                            else:
+                                st.warning("No se pudieron generar los mapas para la comparación.")
+                        except Exception as e:
+                            st.error(f"Ocurrió un error al generar las imágenes del mapa: {e}")
 
                 with comp_col2:
                     st.markdown("##### Costos y Cantidades por Distrito")
