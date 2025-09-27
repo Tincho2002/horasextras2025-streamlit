@@ -624,6 +624,9 @@ if uploaded_file is not None:
                 Costo_Total=('Costo_Total_Dinamico', 'sum'), 
                 Cantidad_Total=('Cantidad_Total_Dinamica', 'sum')
             ).reset_index()
+
+            df_mapa_data = pd.merge(df_mapa_agg, df_coords, left_on='Ubicación', right_on="Distrito", how="left")
+            df_mapa_data.dropna(subset=['Latitud', 'Longitud'], inplace=True)
             
             # --- BLOQUE DE KPIS ---
             if not df_mapa_agg.empty:
@@ -641,26 +644,21 @@ if uploaded_file is not None:
 
             # --- INICIO: COMPARADOR DE MAPAS ---
             st.subheader(f"Comparador de Mapas para el Período: {month_name_map}")
-            
             map_style_options = {"Satélite con Calles": "satellite-streets", "Mapa de Calles": "open-street-map", "Estilo Claro": "carto-positron"}
             
-            sel_col1, sel_col2 = st.columns(2)
-            with sel_col1:
-                selected_style_1_name = st.selectbox("Selecciona el estilo del mapa izquierdo:", options=list(map_style_options.keys()), key="map_style_selector_1", index=0)
-            with sel_col2:
-                selected_style_2_name = st.selectbox("Selecciona el estilo del mapa derecho:", options=list(map_style_options.keys()), key="map_style_selector_2", index=1)
-                
-            selected_mapbox_style_1 = map_style_options[selected_style_1_name]
-            selected_mapbox_style_2 = map_style_options[selected_style_2_name]
-            
-            df_mapa_data = pd.merge(df_mapa_agg, df_coords, left_on='Ubicación', right_on="Distrito", how="left")
-            df_mapa_data.dropna(subset=['Latitud', 'Longitud'], inplace=True)
-
             if df_mapa_data.empty:
-                st.warning("No se encontraron coordenadas para las ubicaciones seleccionadas.")
+                st.warning("No se encontraron coordenadas para las ubicaciones seleccionadas para el comparador.")
             else:
-                comp_col1, comp_col2 = st.columns([3, 2])
+                sel_col1, sel_col2 = st.columns(2)
+                with sel_col1:
+                    selected_style_1_name = st.selectbox("Selecciona el estilo del mapa izquierdo:", options=list(map_style_options.keys()), key="map_style_selector_1", index=0)
+                with sel_col2:
+                    selected_style_2_name = st.selectbox("Selecciona el estilo del mapa derecho:", options=list(map_style_options.keys()), key="map_style_selector_2", index=1)
+                    
+                selected_mapbox_style_1 = map_style_options[selected_style_1_name]
+                selected_mapbox_style_2 = map_style_options[selected_style_2_name]
                 
+                comp_col1, comp_col2 = st.columns([3, 2])
                 with comp_col1:
                     map1_col, map2_col = st.columns(2)
                     mapbox_access_token = "pk.eyJ1Ijoic2FuZHJhcXVldmVkbyIsImEiOiJjbWYzOGNkZ2QwYWg0MnFvbDJucWc5d3VwIn0.bz6E-qxAwk6ZFPYohBsdMw"
@@ -668,40 +666,51 @@ if uploaded_file is not None:
                     
                     with map1_col:
                         st.markdown(f"**{selected_style_1_name}**")
-                        fig1 = px.scatter_mapbox(
-                            df_mapa_data, lat="Latitud", lon="Longitud", 
-                            size="Cantidad_Total", color="Costo_Total", 
-                            hover_name="Distrito", 
-                            hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, 
-                            color_continuous_scale=px.colors.sequential.Plasma, 
-                            size_max=50, mapbox_style=selected_mapbox_style_1, zoom=5.5, 
-                            center={"lat": -31.5, "lon": -61}
-                        )
+                        fig1 = px.scatter_mapbox(df_mapa_data, lat="Latitud", lon="Longitud", size="Cantidad_Total", color="Costo_Total", hover_name="Distrito", hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, color_continuous_scale=px.colors.sequential.Plasma, size_max=50, mapbox_style=selected_mapbox_style_1, zoom=5.5, center={"lat": -31.5, "lon": -61})
                         fig1.update_layout(margin={"r":0,"t":25,"l":0,"b":0}, height=500)
                         st.plotly_chart(fig1, use_container_width=True)
 
                     with map2_col:
                         st.markdown(f"**{selected_style_2_name}**")
-                        fig2 = px.scatter_mapbox(
-                            df_mapa_data, lat="Latitud", lon="Longitud", 
-                            size="Cantidad_Total", color="Costo_Total", 
-                            hover_name="Distrito", 
-                            hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, 
-                            color_continuous_scale=px.colors.sequential.Plasma, 
-                            size_max=50, mapbox_style=selected_mapbox_style_2, zoom=5.5, 
-                            center={"lat": -31.5, "lon": -61}
-                        )
+                        fig2 = px.scatter_mapbox(df_mapa_data, lat="Latitud", lon="Longitud", size="Cantidad_Total", color="Costo_Total", hover_name="Distrito", hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, color_continuous_scale=px.colors.sequential.Plasma, size_max=50, mapbox_style=selected_mapbox_style_2, zoom=5.5, center={"lat": -31.5, "lon": -61})
                         fig2.update_layout(margin={"r":0,"t":25,"l":0,"b":0}, height=500)
                         st.plotly_chart(fig2, use_container_width=True)
 
                 with comp_col2:
                     st.markdown("##### Costos y Cantidades por Distrito")
-                    table_data = df_mapa_agg.rename(columns={'Ubicación': 'Distrito', 'Costo_Total': 'Costo Total', 'Cantidad_Total': 'Cantidad Total'})
-                    table_data.sort_values(by='Costo Total', ascending=False, inplace=True)
-                    total_row = pd.DataFrame({'Distrito': ['**TOTAL GENERAL**'], 'Costo Total': [table_data['Costo Total'].sum()], 'Cantidad Total': [table_data['Cantidad Total'].sum()]})
-                    df_final_table = pd.concat([table_data, total_row], ignore_index=True)
-                    st.dataframe(df_final_table.style.format({'Costo Total': format_currency_es, 'Cantidad Total': lambda x: format_number_es(x, 0)}), use_container_width=True, height=550, hide_index=True)
+                    table_data_comp = df_mapa_agg.rename(columns={'Ubicación': 'Distrito', 'Costo_Total': 'Costo Total', 'Cantidad_Total': 'Cantidad Total'})
+                    table_data_comp.sort_values(by='Costo Total', ascending=False, inplace=True)
+                    total_row_comp = pd.DataFrame({'Distrito': ['**TOTAL GENERAL**'], 'Costo Total': [table_data_comp['Costo Total'].sum()], 'Cantidad Total': [table_data_comp['Cantidad Total'].sum()]})
+                    df_final_table_comp = pd.concat([table_data_comp, total_row_comp], ignore_index=True)
+                    st.dataframe(df_final_table_comp.style.format({'Costo Total': format_currency_es, 'Cantidad Total': lambda x: format_number_es(x, 0)}), use_container_width=True, height=550, hide_index=True)
+            
+            st.markdown("---")
             # --- FIN: COMPARADOR DE MAPAS ---
+
+            # --- INICIO: MAPA ÚNICO INTERACTIVO ---
+            st.subheader(f"Distribución Geográfica para el Período: {month_name_map}")
+            
+            if df_mapa_data.empty:
+                st.warning("No se encontraron coordenadas para las ubicaciones seleccionadas para la vista individual.")
+            else:
+                selected_style_single_name = st.selectbox("Selecciona el estilo del mapa:", options=list(map_style_options.keys()), key="map_style_selector_single", index=0)
+                selected_mapbox_style_single = map_style_options[selected_style_single_name]
+                
+                single_map_col, single_table_col = st.columns([3, 2])
+                
+                with single_map_col:
+                    fig_single = px.scatter_mapbox(df_mapa_data, lat="Latitud", lon="Longitud", size="Cantidad_Total", color="Costo_Total", hover_name="Distrito", hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, color_continuous_scale=px.colors.sequential.Plasma, size_max=50, mapbox_style=selected_mapbox_style_single, zoom=6, center={"lat": -32.5, "lon": -61.5})
+                    fig_single.update_layout(margin={"r":0, "t":0, "l":0, "b":0}, height=600)
+                    st.plotly_chart(fig_single, use_container_width=True)
+
+                with single_table_col:
+                    st.markdown("##### Costos y Cantidades por Distrito")
+                    table_data_single = df_mapa_agg.rename(columns={'Ubicación': 'Distrito', 'Costo_Total': 'Costo Total', 'Cantidad_Total': 'Cantidad Total'})
+                    table_data_single.sort_values(by='Costo Total', ascending=False, inplace=True)
+                    total_row_single = pd.DataFrame({'Distrito': ['**TOTAL GENERAL**'], 'Costo Total': [table_data_single['Costo Total'].sum()], 'Cantidad Total': [table_data_single['Cantidad Total'].sum()]})
+                    df_final_table_single = pd.concat([table_data_single, total_row_single], ignore_index=True)
+                    st.dataframe(df_final_table_single.style.format({'Costo Total': format_currency_es, 'Cantidad Total': lambda x: format_number_es(x, 0)}), use_container_width=True, height=600, hide_index=True)
+            # --- FIN: MAPA ÚNICO INTERACTIVO ---
 
     with tab_desglose_org:
         st.header('Desglose Organizacional Detallado')
