@@ -665,15 +665,13 @@ if uploaded_file is not None:
                     px.set_mapbox_access_token(mapbox_access_token)
                     
                     with map1_col:
-                        st.markdown(f"**{selected_style_1_name}**")
                         fig1 = px.scatter_mapbox(df_mapa_data, lat="Latitud", lon="Longitud", size="Cantidad_Total", color="Costo_Total", hover_name="Distrito", hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, color_continuous_scale=px.colors.sequential.Plasma, size_max=50, mapbox_style=selected_mapbox_style_1, zoom=5.5, center={"lat": -31.5, "lon": -61})
-                        fig1.update_layout(margin={"r":0,"t":25,"l":0,"b":0}, height=500)
+                        fig1.update_layout(title_text=selected_style_1_name, margin={"r":0,"t":40,"l":0,"b":0}, height=500)
                         st.plotly_chart(fig1, use_container_width=True)
 
                     with map2_col:
-                        st.markdown(f"**{selected_style_2_name}**")
                         fig2 = px.scatter_mapbox(df_mapa_data, lat="Latitud", lon="Longitud", size="Cantidad_Total", color="Costo_Total", hover_name="Distrito", hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, color_continuous_scale=px.colors.sequential.Plasma, size_max=50, mapbox_style=selected_mapbox_style_2, zoom=5.5, center={"lat": -31.5, "lon": -61})
-                        fig2.update_layout(margin={"r":0,"t":25,"l":0,"b":0}, height=500)
+                        fig2.update_layout(title_text=selected_style_2_name, margin={"r":0,"t":40,"l":0,"b":0}, height=500)
                         st.plotly_chart(fig2, use_container_width=True)
 
                 with comp_col2:
