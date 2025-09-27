@@ -2,6 +2,9 @@ streamlit
 pandas
 altair
 numpy
-plotly
 openpyxl
+plotly==5.15.0
+streamlit-image-comparison
+kaleido==0.2.1
+Pillow
 
