@@ -654,11 +654,9 @@ if uploaded_file is not None:
                 with comp_col1:
                     sel_col1, sel_col2 = st.columns(2)
                     with sel_col1:
-                        #selected_style_1_name = st.selectbox("Selecciona el estilo del mapa izquierdo:", options=list(map_style_options.keys()), key="map_style_selector_1", index=0)
-                        selected_style_1_name = st.selectbox("Selecciona el estilo del mapa derecho:", options=list(map_style_options.keys()), key="map_style_selector_1", index=0)
+                        selected_style_1_name = st.selectbox("Selecciona el estilo del mapa izquierdo:", options=list(map_style_options.keys()), key="map_style_selector_1", index=0)
                     with sel_col2:
-                        #selected_style_2_name = st.selectbox("Selecciona el estilo del mapa derecho:", options=list(map_style_options.keys()), key="map_style_selector_2", index=1)
-                        selected_style_2_name = st.selectbox("Selecciona el estilo del mapa izquierdo:", options=list(map_style_options.keys()), key="map_style_selector_2", index=1)
+                        selected_style_2_name = st.selectbox("Selecciona el estilo del mapa derecho:", options=list(map_style_options.keys()), key="map_style_selector_2", index=1)
                         
                     selected_mapbox_style_1 = map_style_options[selected_style_1_name]
                     selected_mapbox_style_2 = map_style_options[selected_style_2_name]
@@ -666,11 +664,11 @@ if uploaded_file is not None:
                     mapbox_access_token = "pk.eyJ1Ijoic2FuZHJhcXVldmVkbyIsImEiOiJjbWYzOGNkZ2QwYWg0MnFvbDJucWc5d3VwIn0.bz6E-qxAwk6ZFPYohBsdMw"
                     px.set_mapbox_access_token(mapbox_access_token)
 
-                    fig1 = px.scatter_mapbox(df_mapa_data, lat="Latitud", lon="Longitud", size="Cantidad_Total", color="Costo_Total", hover_name="Distrito", hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, color_continuous_scale=px.colors.sequential.Plasma, size_max=50, mapbox_style=selected_mapbox_style_1, zoom=5.5, center={"lat": -31.5, "lon": -61})
+                    fig1 = px.scatter_mapbox(df_mapa_data, lat="Latitud", lon="Longitud", size="Cantidad_Total", color="Costo_Total", hover_name="Distrito", hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, color_continuous_scale=px.colors.sequential.Plasma, size_max=50, mapbox_style=selected_mapbox_style_1, zoom=6, center={"lat": -32.5, "lon": -61.5})
                     fig1.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=600)
                     img1_bytes = fig1.to_image(format="png")
 
-                    fig2 = px.scatter_mapbox(df_mapa_data, lat="Latitud", lon="Longitud", size="Cantidad_Total", color="Costo_Total", hover_name="Distrito", hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, color_continuous_scale=px.colors.sequential.Plasma, size_max=50, mapbox_style=selected_mapbox_style_2, zoom=5.5, center={"lat": -31.5, "lon": -61})
+                    fig2 = px.scatter_mapbox(df_mapa_data, lat="Latitud", lon="Longitud", size="Cantidad_Total", color="Costo_Total", hover_name="Distrito", hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, color_continuous_scale=px.colors.sequential.Plasma, size_max=50, mapbox_style=selected_mapbox_style_2, zoom=6, center={"lat": -32.5, "lon": -61.5})
                     fig2.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=600)
                     img2_bytes = fig2.to_image(format="png")
 
