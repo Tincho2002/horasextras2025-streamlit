@@ -412,6 +412,7 @@ if uploaded_file is not None:
         available_options = get_available_options(df, st.session_state.selections, col)
         current_selection = [sel for sel in st.session_state.selections.get(col, []) if sel in available_options]
 
+        # Si una selección previa se volvió inválida, la actualizamos y forzamos un rerun
         if current_selection != st.session_state.selections.get(col, []):
             st.session_state.selections[col] = current_selection
             st.rerun()
