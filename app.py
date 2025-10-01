@@ -230,9 +230,9 @@ def load_coords_from_url(url):
 
 # --- INICIO CORRECCIÓN: Refactorización de funciones de cálculo ---
 @st.cache_data
-def calculate_monthly_trends(filtered_df, cost_cols_map, quant_cols_map, selected_cost_keys, selected_quant_keys):
-    if filtered_df.empty: return pd.DataFrame()
-    _df = filtered_df.copy()
+def calculate_monthly_trends(full_df, selections, cost_cols_map, quant_cols_map, selected_cost_keys, selected_quant_keys):
+    _df = apply_filters(full_df, selections)
+    if _df.empty: return pd.DataFrame()
     cost_cols = [cost_cols_map[k] for k in selected_cost_keys if k in cost_cols_map]
     quant_cols = [quant_cols_map[k] for k in selected_quant_keys if k in quant_cols_map]
     agg_dict = {col: pd.NamedAgg(column=col, aggfunc='sum') for col in cost_cols + quant_cols if col in _df.columns}
@@ -244,7 +244,7 @@ def calculate_monthly_trends(filtered_df, cost_cols_map, quant_cols_map, selecte
 
 @st.cache_data
 def calculate_monthly_variations(_df_trends):
-    if _df_trends.empty: return pd.DataFrame()
+    if _df_trends.empty or len(_df_trends) < 2: return pd.DataFrame()
     df_var = _df_trends[['Mes', 'Total_Costos', 'Total_Cantidades']].copy()
     df_var['Variacion_Costos_Abs'] = df_var['Total_Costos'].diff().fillna(0)
     df_var['Variacion_Cantidades_Abs'] = df_var['Total_Cantidades'].diff().fillna(0)
@@ -253,9 +253,9 @@ def calculate_monthly_variations(_df_trends):
     return df_var
 
 @st.cache_data
-def calculate_grouped_aggregation(filtered_df, group_cols, cost_cols_map, quant_cols_map, selected_cost_keys, selected_quant_keys):
-    if filtered_df.empty: return pd.DataFrame()
-    _df = filtered_df.copy()
+def calculate_grouped_aggregation(full_df, selections, group_cols, cost_cols_map, quant_cols_map, selected_cost_keys, selected_quant_keys):
+    _df = apply_filters(full_df, selections)
+    if _df.empty: return pd.DataFrame()
     cost_cols = [cost_cols_map[k] for k in selected_cost_keys if k in cost_cols_map]
     quant_cols = [quant_cols_map[k] for k in selected_quant_keys if k in quant_cols_map]
     agg_dict = {col: pd.NamedAgg(column=col, aggfunc='sum') for col in cost_cols + quant_cols if col in _df.columns}
@@ -266,9 +266,9 @@ def calculate_grouped_aggregation(filtered_df, group_cols, cost_cols_map, quant_
     return df_grouped
 
 @st.cache_data
-def calculate_employee_overtime(filtered_df, cost_cols_map, quant_cols_map, selected_cost_keys, selected_quant_keys):
-    if filtered_df.empty: return pd.DataFrame()
-    _df = filtered_df.copy()
+def calculate_employee_overtime(full_df, selections, cost_cols_map, quant_cols_map, selected_cost_keys, selected_quant_keys):
+    _df = apply_filters(full_df, selections)
+    if _df.empty: return pd.DataFrame()
     cost_cols = [cost_cols_map[k] for k in selected_cost_keys if k in cost_cols_map]
     quant_cols = [quant_cols_map[k] for k in selected_quant_keys if k in quant_cols_map]
     agg_cols = {}
@@ -285,9 +285,9 @@ def calculate_employee_overtime(filtered_df, cost_cols_map, quant_cols_map, sele
     return employee_overtime
 
 @st.cache_data
-def calculate_average_hourly_rate(filtered_df, dimension):
-    if filtered_df.empty: return pd.DataFrame()
-    _df = filtered_df.copy()
+def calculate_average_hourly_rate(full_df, selections, dimension):
+    _df = apply_filters(full_df, selections)
+    if _df.empty: return pd.DataFrame()
     valor_hora_cols = [col for col in ['Hora Normal', 'Hora Extra al 50%', 'Hora Extra al 50% Sabados', 'Hora Extra al 100%', 'HE FC'] if col in _df.columns]
     if not valor_hora_cols: return pd.DataFrame()
     return _df.groupby(dimension)[valor_hora_cols].mean().reset_index()
@@ -558,9 +558,7 @@ if uploaded_file is not None:
             st.header('Tendencias Mensuales de Horas Extras')
             st.markdown("<br>", unsafe_allow_html=True)
             with st.spinner("Generando análisis de tendencias..."):
-                # --- INICIO CORRECCIÓN: Usar filtered_df para el cálculo ---
-                monthly_trends_agg = calculate_monthly_trends(filtered_df, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
-                # --- FIN CORRECCIÓN ---
+                monthly_trends_agg = calculate_monthly_trends(df, st.session_state.selections, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
                 
                 if not monthly_trends_agg.empty:
                     total_row = monthly_trends_agg.sum(numeric_only=True).to_frame().T
@@ -570,7 +568,6 @@ if uploaded_file is not None:
                     color_range = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
                     col1, col2 = st.columns(2)
                     with col1:
-                        # --- INICIO CORRECCIÓN: Chequeo para gráfico vacío ---
                         if monthly_trends_agg['Total_Costos'].sum() > 0:
                             chart_data, max_cost = monthly_trends_agg, monthly_trends_agg['Total_Costos'].max()
                             y_scale_cost = alt.Scale(domain=[0, max_cost * 1.25]) if max_cost > 0 else alt.Scale()
@@ -582,9 +579,7 @@ if uploaded_file is not None:
                             st.altair_chart(alt.layer(bars_costos, line_costos, text_costos).resolve_scale(y='shared').properties(title=alt.TitleParams('Costos Mensuales', anchor='middle')).interactive(), use_container_width=True)
                         else:
                             st.info("No hay datos de costos para mostrar para la selección actual.")
-                        # --- FIN CORRECCIÓN ---
                     with col2:
-                        # --- INICIO CORRECCIÓN: Chequeo para gráfico vacío ---
                         if monthly_trends_agg['Total_Cantidades'].sum() > 0:
                             chart_data, max_quant = monthly_trends_agg, monthly_trends_agg['Total_Cantidades'].max()
                             y_scale_quant = alt.Scale(domain=[0, max_quant * 1.25]) if max_quant > 0 else alt.Scale()
@@ -596,14 +591,15 @@ if uploaded_file is not None:
                             st.altair_chart(alt.layer(bars_cantidades, line_cantidades, text_cantidades).resolve_scale(y='shared').properties(title=alt.TitleParams('Cantidades Mensuales', anchor='middle')).interactive(), use_container_width=True)
                         else:
                             st.info("No hay datos de cantidades para mostrar para la selección actual.")
-                        # --- FIN CORRECCIÓN ---
                     st.subheader('Tabla de Tendencias Mensuales')
                     st.dataframe(monthly_trends_agg_with_total.style.format(create_format_dict(monthly_trends_agg_with_total)), use_container_width=True)
                     generate_download_buttons(monthly_trends_agg_with_total, 'tendencias_mensuales', 'tab1_trends')
+                else:
+                    st.warning("No hay datos de tendencias para mostrar con los filtros actuales.")
         with st.container(border=True):
-            if not monthly_trends_agg.empty and len(monthly_trends_agg) > 1:
-                with st.spinner("Calculando variaciones mensuales..."):
-                    monthly_trends_for_var = calculate_monthly_variations(monthly_trends_agg)
+            with st.spinner("Calculando variaciones mensuales..."):
+                monthly_trends_for_var = calculate_monthly_variations(monthly_trends_agg)
+                if not monthly_trends_for_var.empty:
                     st.header('Análisis de Variaciones Mensuales')
                     st.markdown("<br>", unsafe_allow_html=True)
                     col1, col2 = st.columns(2)
@@ -633,6 +629,9 @@ if uploaded_file is not None:
                     formatters_var.update({'Variacion_Costos_Pct': lambda x: f"{format_number_es(x, 2)}%", 'Variacion_Cantidades_Pct': lambda x: f"{format_number_es(x, 2)}%"})
                     st.dataframe(df_variaciones.style.format(formatters_var), use_container_width=True)
                     generate_download_buttons(df_variaciones, 'variaciones_mensuales', 'tab1_var')
+                else:
+                    st.info("No hay suficientes datos (se necesita más de un mes) para calcular las variaciones.")
+
 
     with tab_mapa:
         st.header("Distribución Geográfica de Horas Extras")
@@ -657,7 +656,6 @@ if uploaded_file is not None:
                 meses_espanol = {1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL", 5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO", 9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE"}
                 month_name_map = f"{meses_espanol.get(month_dt_map.month, '')} {month_dt_map.year}"
             
-            # --- CÁLCULO DE DATOS AGREGADOS PARA EL MAPA Y KPIS ---
             selected_cost_cols = [cost_columns_options[k] for k in st.session_state.cost_types if k in cost_columns_options]
             selected_quant_cols = [quantity_columns_options[k] for k in st.session_state.quantity_types if k in quantity_columns_options]
             
@@ -682,7 +680,6 @@ if uploaded_file is not None:
             df_mapa_data = pd.merge(df_mapa_agg, df_coords, left_on='Ubicación', right_on="Distrito", how="left")
             df_mapa_data.dropna(subset=['Latitud', 'Longitud'], inplace=True)
             
-            # --- BLOQUE DE KPIS ---
             if not df_mapa_agg.empty:
                 total_costo_mapa = df_mapa_agg['Costo_Total'].sum()
                 total_cantidad_mapa = df_mapa_agg['Cantidad_Total'].sum()
@@ -696,7 +693,6 @@ if uploaded_file is not None:
                 kpi_col3.metric("📍 Ubicaciones Activas", format_number_es(ubicaciones_unicas, 0))
                 st.markdown("---")
 
-            # --- INICIO: COMPARADOR DE MAPAS CON CORTINA ---
             st.subheader(f"Comparador de Mapas para el Período: {month_name_map}")
             map_style_options = {"Satélite con Calles": "satellite-streets", "Mapa de Calles": "open-street-map", "Estilo Claro": "carto-positron"}
             
@@ -760,7 +756,6 @@ if uploaded_file is not None:
             
             st.markdown("---")
 
-            # --- INICIO: MAPA ÚNICO INTERACTIVO ---
             st.subheader(f"Mapa Interactivo Individual para el Período: {month_name_map}")
             
             if not df_mapa_data.empty:
@@ -781,7 +776,6 @@ if uploaded_file is not None:
                     total_row_single = pd.DataFrame({'Distrito': ['**TOTAL GENERAL**'], 'Costo Total': [table_data_single['Costo Total'].sum()], 'Cantidad Total': [table_data_single['Cantidad Total'].sum()]})
                     df_final_table_single = pd.concat([table_data_single, total_row_single], ignore_index=True)
                     st.dataframe(df_final_table_single.style.format({'Costo Total': format_currency_es, 'Cantidad Total': lambda x: format_number_es(x, 0)}), use_container_width=True, height=600, hide_index=True)
-            # --- FIN: MAPA ÚNICO INTERACTIVO ---
 
     with tab_desglose_org:
         st.header('Desglose Organizacional Detallado')
@@ -790,9 +784,7 @@ if uploaded_file is not None:
         group_cols = dimension_options[selected_dimension_key]
         primary_col, secondary_col = group_cols[0], group_cols[1]
         with st.spinner(f"Generando desglose por {selected_dimension_key}..."):
-            # --- INICIO CORRECCIÓN: Usar filtered_df para el cálculo ---
-            df_grouped = calculate_grouped_aggregation(filtered_df, group_cols, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
-            # --- FIN CORRECCIÓN ---
+            df_grouped = calculate_grouped_aggregation(df, st.session_state.selections, group_cols, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
             st.subheader(f'Distribución por {selected_dimension_key}')
             
             if df_grouped.empty:
@@ -829,9 +821,7 @@ if uploaded_file is not None:
     with tab_empleados:
         with st.container(border=True):
             with st.spinner("Calculando ranking de empleados..."):
-                # --- INICIO CORRECCIÓN: Usar filtered_df para el cálculo ---
-                employee_overtime = calculate_employee_overtime(filtered_df, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
-                # --- FIN CORRECCIÓN ---
+                employee_overtime = calculate_employee_overtime(df, st.session_state.selections, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
                 if not employee_overtime.empty:
                     st.header(f'Top {top_n_employees} Empleados con Mayor Horas Extras')
                     top_costo_empleados, top_cantidad_empleados = employee_overtime.nlargest(top_n_employees, 'Total_Costos'), employee_overtime.nlargest(top_n_employees, 'Total_Cantidades')
@@ -862,9 +852,7 @@ if uploaded_file is not None:
             with st.spinner("Calculando valores promedio por hora..."):
                 st.header('Valores Promedio por Hora')
                 grouping_dimension = st.selectbox('Selecciona la dimensión de desglose:', ['Gerencia', 'Legajo', 'Función', 'CECO', 'Ubicación', 'Nivel', 'Sexo'], key='valor_hora_grouping')
-                # --- INICIO CORRECCIÓN: Usar filtered_df para el cálculo ---
-                df_valor_hora = calculate_average_hourly_rate(filtered_df, grouping_dimension)
-                # --- FIN CORRECCIÓN ---
+                df_valor_hora = calculate_average_hourly_rate(df, st.session_state.selections, grouping_dimension)
                 if not df_valor_hora.empty:
                     st.dataframe(df_valor_hora.style.format(create_format_dict(df_valor_hora)), use_container_width=True)
                     generate_download_buttons(df_valor_hora, f'valores_promedio_hora_por_{grouping_dimension}', 'tab_valor_hora')
