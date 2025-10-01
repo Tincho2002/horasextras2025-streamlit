@@ -202,12 +202,9 @@ def apply_filters(full_df, selections):
 def get_sorted_unique_options(dataframe, column_name):
     if column_name in dataframe.columns:
         unique_values = dataframe[column_name].dropna().unique().tolist()
-        # Excluir 'no disponible' de las opciones de filtro
         unique_values = [v for v in unique_values if v != 'no disponible']
-        # Ordenamiento especial para Mes
         if column_name == 'Mes':
             try:
-                # Intenta ordenar por fecha, si falla, ordena alfabéticamente
                 return sorted(unique_values, key=lambda x: datetime.strptime(x, '%Y-%m'))
             except ValueError:
                 return sorted(unique_values)
@@ -216,7 +213,6 @@ def get_sorted_unique_options(dataframe, column_name):
 
 def get_available_options(df, selections, target_column):
     _df = df.copy()
-    # Aplica todos los filtros excepto el que se está calculando
     for col, values in selections.items():
         if col != target_column and values:
             _df = _df[_df[col].isin(values)]
@@ -376,59 +372,54 @@ if uploaded_file is not None:
 
     st.success(f"Se ha cargado un total de **{format_number_es(len(df), 0)}** registros de horas extras.")
 
-    # --- DEFINICIÓN Y ESTADO DE FILTROS ---
+    # --- INICIO: LÓGICA DE FILTROS TIPO SLICER ---
     st.sidebar.header('Filtros del Dashboard')
+    
     cost_columns_options = {'Horas extras al 50 %': 'Horas extras al 50 %', 'Horas extras al 50 % Sabados': 'Horas extras al 50 % Sabados', 'Horas extras al 100%': 'Horas extras al 100%', 'Importe HE Fc': 'Importe HE Fc'}
     quantity_columns_options = {'Cantidad HE 50': 'Cantidad HE 50', 'Cant HE al 50 Sabados': 'Cant HE al 50 Sabados', 'Cantidad HE 100': 'Cantidad HE 100', 'Cantidad HE FC': 'Cantidad HE FC'}
-    filter_cols = ['Gerencia', 'Ministerio', 'CECO', 'Ubicación', 'Función', 'Nivel', 'Sexo', 'Liquidación', 'Legajo', 'Mes']
     
-    if 'selections' not in st.session_state:
-        st.session_state.selections = {col: [] for col in filter_cols}
-    if 'cost_types' not in st.session_state:
-        st.session_state.cost_types = list(cost_columns_options.keys())
-    if 'quantity_types' not in st.session_state:
-        st.session_state.quantity_types = list(quantity_columns_options.keys())
+    filter_cols_config = {
+        'Gerencia': 'Gerencia', 'Ministerio': 'Ministerio', 'CECO': 'Centro de Costo', 'Ubicación': 'Ubicación',
+        'Función': 'Función', 'Nivel': 'Nivel', 'Sexo': 'Sexo', 'Liquidación': 'Liquidación',
+        'Legajo': 'Legajo', 'Mes': 'Mes'
+    }
+    filter_cols = list(filter_cols_config.keys())
 
-    col1, col2 = st.sidebar.columns(2)
-    if col1.button('🧹 Limpiar Filtros', use_container_width=True):
-        st.session_state.selections = {col: [] for col in filter_cols}
-        st.session_state.cost_types = []
-        st.session_state.quantity_types = []
+    # 1. INICIALIZACIÓN DEL ESTADO
+    if 'selections' not in st.session_state:
+        st.session_state.selections = {col: get_sorted_unique_options(df, col) for col in filter_cols}
+        st.session_state.cost_types = list(cost_columns_options.keys())
+        st.session_state.quantity_types = list(quantity_columns_options.keys())
         st.rerun()
 
-    if col2.button('📥 Cargar Todo', use_container_width=True):
-        # CORRECCIÓN: Lógica correcta para Cargar Todo
-        selections_copy = {col: [] for col in filter_cols}
-        for col in filter_cols:
-            st.session_state.selections[col] = get_available_options(df, selections_copy, col)
+    # 2. BOTÓN DE RESETEO
+    if st.sidebar.button('🔄 Resetear Filtros', use_container_width=True):
+        st.session_state.selections = {col: get_sorted_unique_options(df, col) for col in filter_cols}
         st.session_state.cost_types = list(cost_columns_options.keys())
         st.session_state.quantity_types = list(quantity_columns_options.keys())
         st.rerun()
     
     st.sidebar.markdown("---")
 
-    # --- INICIO: BUCLE DE FILTROS INTELIGENTES ---
-    # Almacena una copia de las selecciones antes de que los widgets se redibujen
-    old_selections = st.session_state.selections.copy()
+    # 3. LÓGICA DE RENDERIZADO Y ACTUALIZACIÓN (SLICER)
+    old_selections = {k: list(v) for k, v in st.session_state.selections.items()}
 
-    for col in filter_cols:
+    for col, title in filter_cols_config.items():
         available_options = get_available_options(df, st.session_state.selections, col)
         current_selection = [sel for sel in st.session_state.selections.get(col, []) if sel in available_options]
 
-        # El widget se dibuja con las opciones disponibles y la selección actual válida
         selected = st.sidebar.multiselect(
-            f'Selecciona {col}(s):',
+            title,
             options=available_options,
             default=current_selection,
             key=f"multiselect_{col}"
         )
-        # Actualiza el estado de la sesión con el valor del widget
         st.session_state.selections[col] = selected
 
-    # Comprueba si alguna selección ha cambiado después de que todos los widgets se hayan dibujado
+    # 4. DETECCIÓN DE CAMBIOS
     if old_selections != st.session_state.selections:
         st.rerun()
-    # --- FIN: BUCLE DE FILTROS INTELIGENTES ---
+    # --- FIN: LÓGICA DE FILTROS ---
 
     filtered_df = apply_filters(df, st.session_state.selections)
     
@@ -437,12 +428,12 @@ if uploaded_file is not None:
     st.sidebar.subheader("Selección de Tipos de Horas Extras")
     
     st.session_state.cost_types = st.sidebar.multiselect(
-        'Selecciona Tipos de Costo de HE:', 
+        'Tipos de Costo de HE:', 
         options=list(cost_columns_options.keys()), 
         default=st.session_state.get('cost_types', [])
     )
     st.session_state.quantity_types = st.sidebar.multiselect(
-        'Selecciona Tipos de Cantidad de HE:', 
+        'Tipos de Cantidad de HE:', 
         options=list(quantity_columns_options.keys()), 
         default=st.session_state.get('quantity_types', [])
     )
@@ -865,4 +856,3 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados', 'tab4_brutos')
 else:
     st.info("Por favor, cargue un archivo Excel para comenzar el análisis.")
-
