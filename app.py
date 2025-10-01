@@ -397,6 +397,7 @@ if uploaded_file is not None:
         st.rerun()
 
     if col2.button('📥 Cargar Todo', use_container_width=True):
+        # CORRECCIÓN: Lógica correcta para Cargar Todo
         selections_copy = {col: [] for col in filter_cols}
         for col in filter_cols:
             st.session_state.selections[col] = get_available_options(df, selections_copy, col)
