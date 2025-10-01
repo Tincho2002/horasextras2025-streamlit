@@ -408,21 +408,26 @@ if uploaded_file is not None:
     st.sidebar.markdown("---")
 
     # --- INICIO: BUCLE DE FILTROS INTELIGENTES ---
+    # Almacena una copia de las selecciones antes de que los widgets se redibujen
+    old_selections = st.session_state.selections.copy()
+
     for col in filter_cols:
         available_options = get_available_options(df, st.session_state.selections, col)
         current_selection = [sel for sel in st.session_state.selections.get(col, []) if sel in available_options]
 
-        # Si una selección previa se volvió inválida, la actualizamos y forzamos un rerun
-        if current_selection != st.session_state.selections.get(col, []):
-            st.session_state.selections[col] = current_selection
-            st.rerun()
-            
-        st.session_state.selections[col] = st.sidebar.multiselect(
+        # El widget se dibuja con las opciones disponibles y la selección actual válida
+        selected = st.sidebar.multiselect(
             f'Selecciona {col}(s):',
             options=available_options,
             default=current_selection,
             key=f"multiselect_{col}"
         )
+        # Actualiza el estado de la sesión con el valor del widget
+        st.session_state.selections[col] = selected
+
+    # Comprueba si alguna selección ha cambiado después de que todos los widgets se hayan dibujado
+    if old_selections != st.session_state.selections:
+        st.rerun()
     # --- FIN: BUCLE DE FILTROS INTELIGENTES ---
 
     filtered_df = apply_filters(df, st.session_state.selections)
