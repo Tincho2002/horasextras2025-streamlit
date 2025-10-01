@@ -198,6 +198,31 @@ def apply_filters(full_df, selections):
             _df = _df[_df[col].isin(values)]
     return _df
 
+# --- INICIO: FUNCIONES PARA FILTROS INTELIGENTES ---
+def get_sorted_unique_options(dataframe, column_name):
+    if column_name in dataframe.columns:
+        unique_values = dataframe[column_name].dropna().unique().tolist()
+        # Excluir 'no disponible' de las opciones de filtro
+        unique_values = [v for v in unique_values if v != 'no disponible']
+        # Ordenamiento especial para Mes
+        if column_name == 'Mes':
+            try:
+                # Intenta ordenar por fecha, si falla, ordena alfabéticamente
+                return sorted(unique_values, key=lambda x: datetime.strptime(x, '%Y-%m'))
+            except ValueError:
+                return sorted(unique_values)
+        return sorted(unique_values)
+    return []
+
+def get_available_options(df, selections, target_column):
+    _df = df.copy()
+    # Aplica todos los filtros excepto el que se está calculando
+    for col, values in selections.items():
+        if col != target_column and values:
+            _df = _df[_df[col].isin(values)]
+    return get_sorted_unique_options(_df, target_column)
+# --- FIN: FUNCIONES PARA FILTROS INTELIGENTES ---
+
 @st.cache_data
 def load_coords_from_url(url):
     try:
@@ -372,19 +397,31 @@ if uploaded_file is not None:
         st.rerun()
 
     if col2.button('📥 Cargar Todo', use_container_width=True):
+        selections_copy = {col: [] for col in filter_cols}
         for col in filter_cols:
-            all_options = sorted(df[col].dropna().unique().tolist())
-            st.session_state.selections[col] = [opt for opt in all_options if opt != 'no disponible']
+            st.session_state.selections[col] = get_available_options(df, selections_copy, col)
         st.session_state.cost_types = list(cost_columns_options.keys())
         st.session_state.quantity_types = list(quantity_columns_options.keys())
         st.rerun()
     
     st.sidebar.markdown("---")
 
+    # --- INICIO: BUCLE DE FILTROS INTELIGENTES ---
     for col in filter_cols:
-        options = sorted(df[col].dropna().unique().tolist())
-        options = [opt for opt in options if opt != 'no disponible']
-        st.session_state.selections[col] = st.sidebar.multiselect(f'Selecciona {col}(s):', options, default=st.session_state.selections.get(col, []))
+        available_options = get_available_options(df, st.session_state.selections, col)
+        current_selection = [sel for sel in st.session_state.selections.get(col, []) if sel in available_options]
+
+        if current_selection != st.session_state.selections.get(col, []):
+            st.session_state.selections[col] = current_selection
+            st.rerun()
+            
+        st.session_state.selections[col] = st.sidebar.multiselect(
+            f'Selecciona {col}(s):',
+            options=available_options,
+            default=current_selection,
+            key=f"multiselect_{col}"
+        )
+    # --- FIN: BUCLE DE FILTROS INTELIGENTES ---
 
     filtered_df = apply_filters(df, st.session_state.selections)
     
