@@ -228,10 +228,11 @@ def load_coords_from_url(url):
         st.error(f"Error al cargar el archivo de coordenadas desde GitHub: {e}")
         return pd.DataFrame()
 
+# --- INICIO CORRECCIÓN: Refactorización de funciones de cálculo ---
 @st.cache_data
-def calculate_monthly_trends(full_df, selections, cost_cols_map, quant_cols_map, selected_cost_keys, selected_quant_keys):
-    _df = apply_filters(full_df, selections)
-    if _df.empty: return pd.DataFrame()
+def calculate_monthly_trends(filtered_df, cost_cols_map, quant_cols_map, selected_cost_keys, selected_quant_keys):
+    if filtered_df.empty: return pd.DataFrame()
+    _df = filtered_df.copy()
     cost_cols = [cost_cols_map[k] for k in selected_cost_keys if k in cost_cols_map]
     quant_cols = [quant_cols_map[k] for k in selected_quant_keys if k in quant_cols_map]
     agg_dict = {col: pd.NamedAgg(column=col, aggfunc='sum') for col in cost_cols + quant_cols if col in _df.columns}
@@ -252,9 +253,9 @@ def calculate_monthly_variations(_df_trends):
     return df_var
 
 @st.cache_data
-def calculate_grouped_aggregation(full_df, selections, group_cols, cost_cols_map, quant_cols_map, selected_cost_keys, selected_quant_keys):
-    _df = apply_filters(full_df, selections)
-    if _df.empty: return pd.DataFrame()
+def calculate_grouped_aggregation(filtered_df, group_cols, cost_cols_map, quant_cols_map, selected_cost_keys, selected_quant_keys):
+    if filtered_df.empty: return pd.DataFrame()
+    _df = filtered_df.copy()
     cost_cols = [cost_cols_map[k] for k in selected_cost_keys if k in cost_cols_map]
     quant_cols = [quant_cols_map[k] for k in selected_quant_keys if k in quant_cols_map]
     agg_dict = {col: pd.NamedAgg(column=col, aggfunc='sum') for col in cost_cols + quant_cols if col in _df.columns}
@@ -265,9 +266,9 @@ def calculate_grouped_aggregation(full_df, selections, group_cols, cost_cols_map
     return df_grouped
 
 @st.cache_data
-def calculate_employee_overtime(full_df, selections, cost_cols_map, quant_cols_map, selected_cost_keys, selected_quant_keys):
-    _df = apply_filters(full_df, selections)
-    if _df.empty: return pd.DataFrame()
+def calculate_employee_overtime(filtered_df, cost_cols_map, quant_cols_map, selected_cost_keys, selected_quant_keys):
+    if filtered_df.empty: return pd.DataFrame()
+    _df = filtered_df.copy()
     cost_cols = [cost_cols_map[k] for k in selected_cost_keys if k in cost_cols_map]
     quant_cols = [quant_cols_map[k] for k in selected_quant_keys if k in quant_cols_map]
     agg_cols = {}
@@ -284,12 +285,14 @@ def calculate_employee_overtime(full_df, selections, cost_cols_map, quant_cols_m
     return employee_overtime
 
 @st.cache_data
-def calculate_average_hourly_rate(full_df, selections, dimension):
-    _df = apply_filters(full_df, selections)
-    if _df.empty: return pd.DataFrame()
+def calculate_average_hourly_rate(filtered_df, dimension):
+    if filtered_df.empty: return pd.DataFrame()
+    _df = filtered_df.copy()
     valor_hora_cols = [col for col in ['Hora Normal', 'Hora Extra al 50%', 'Hora Extra al 50% Sabados', 'Hora Extra al 100%', 'HE FC'] if col in _df.columns]
     if not valor_hora_cols: return pd.DataFrame()
     return _df.groupby(dimension)[valor_hora_cols].mean().reset_index()
+# --- FIN CORRECCIÓN ---
+
 
 # --- Funciones Auxiliares ---
 def generate_download_buttons(df_to_download, filename_prefix, key_suffix):
@@ -555,7 +558,10 @@ if uploaded_file is not None:
             st.header('Tendencias Mensuales de Horas Extras')
             st.markdown("<br>", unsafe_allow_html=True)
             with st.spinner("Generando análisis de tendencias..."):
-                monthly_trends_agg = calculate_monthly_trends(df, st.session_state.selections, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
+                # --- INICIO CORRECCIÓN: Usar filtered_df para el cálculo ---
+                monthly_trends_agg = calculate_monthly_trends(filtered_df, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
+                # --- FIN CORRECCIÓN ---
+                
                 if not monthly_trends_agg.empty:
                     total_row = monthly_trends_agg.sum(numeric_only=True).to_frame().T
                     total_row['Mes'] = 'TOTAL'
@@ -564,23 +570,33 @@ if uploaded_file is not None:
                     color_range = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
                     col1, col2 = st.columns(2)
                     with col1:
-                        chart_data, max_cost = monthly_trends_agg, monthly_trends_agg['Total_Costos'].max()
-                        y_scale_cost = alt.Scale(domain=[0, max_cost * 1.25]) if max_cost > 0 else alt.Scale()
-                        cost_bars_vars = [cost_columns_options[k] for k in st.session_state.cost_types if k in cost_columns_options]
-                        monthly_trends_costos_melted_bars = chart_data.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
-                        bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero', scale=y_scale_cost, axis=alt.Axis(format='$,.0f')), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=cost_color_domain, range=color_range)))
-                        line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)', scale=y_scale_cost, axis=alt.Axis(format='$,.0f')), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format='$,.2f')])
-                        text_costos = line_costos.mark_text(align='center', baseline='bottom', dy=-10, color='black').encode(text=alt.Text('Total_Costos:Q', format='$,.0f'))
-                        st.altair_chart(alt.layer(bars_costos, line_costos, text_costos).resolve_scale(y='shared').properties(title=alt.TitleParams('Costos Mensuales', anchor='middle')).interactive(), use_container_width=True)
+                        # --- INICIO CORRECCIÓN: Chequeo para gráfico vacío ---
+                        if monthly_trends_agg['Total_Costos'].sum() > 0:
+                            chart_data, max_cost = monthly_trends_agg, monthly_trends_agg['Total_Costos'].max()
+                            y_scale_cost = alt.Scale(domain=[0, max_cost * 1.25]) if max_cost > 0 else alt.Scale()
+                            cost_bars_vars = [cost_columns_options[k] for k in st.session_state.cost_types if k in cost_columns_options]
+                            monthly_trends_costos_melted_bars = chart_data.melt('Mes', value_vars=cost_bars_vars, var_name='Tipo de Costo HE', value_name='Costo ($)')
+                            bars_costos = alt.Chart(monthly_trends_costos_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Costo ($):Q', stack='zero', scale=y_scale_cost, axis=alt.Axis(format='$,.0f')), color=alt.Color('Tipo de Costo HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=cost_color_domain, range=color_range)))
+                            line_costos = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Costos:Q', title='Costo ($)', scale=y_scale_cost, axis=alt.Axis(format='$,.0f')), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Costos', title='Total', format='$,.2f')])
+                            text_costos = line_costos.mark_text(align='center', baseline='bottom', dy=-10, color='black').encode(text=alt.Text('Total_Costos:Q', format='$,.0f'))
+                            st.altair_chart(alt.layer(bars_costos, line_costos, text_costos).resolve_scale(y='shared').properties(title=alt.TitleParams('Costos Mensuales', anchor='middle')).interactive(), use_container_width=True)
+                        else:
+                            st.info("No hay datos de costos para mostrar para la selección actual.")
+                        # --- FIN CORRECCIÓN ---
                     with col2:
-                        chart_data, max_quant = monthly_trends_agg, monthly_trends_agg['Total_Cantidades'].max()
-                        y_scale_quant = alt.Scale(domain=[0, max_quant * 1.25]) if max_quant > 0 else alt.Scale()
-                        quantity_bars_vars = [quantity_columns_options[k] for k in st.session_state.quantity_types if k in quantity_columns_options]
-                        monthly_trends_cantidades_melted_bars = chart_data.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
-                        bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Cantidad:Q', stack='zero', scale=y_scale_quant, axis=alt.Axis(format=',.0f')), color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=quantity_color_domain, range=color_range)))
-                        line_cantidades = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Cantidades:Q', title='Cantidad', scale=y_scale_quant, axis=alt.Axis(format=',.0f')), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')])
-                        text_cantidades = line_cantidades.mark_text(align='center', baseline='bottom', dy=-10, color='black').encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
-                        st.altair_chart(alt.layer(bars_cantidades, line_cantidades, text_cantidades).resolve_scale(y='shared').properties(title=alt.TitleParams('Cantidades Mensuales', anchor='middle')).interactive(), use_container_width=True)
+                        # --- INICIO CORRECCIÓN: Chequeo para gráfico vacío ---
+                        if monthly_trends_agg['Total_Cantidades'].sum() > 0:
+                            chart_data, max_quant = monthly_trends_agg, monthly_trends_agg['Total_Cantidades'].max()
+                            y_scale_quant = alt.Scale(domain=[0, max_quant * 1.25]) if max_quant > 0 else alt.Scale()
+                            quantity_bars_vars = [quantity_columns_options[k] for k in st.session_state.quantity_types if k in quantity_columns_options]
+                            monthly_trends_cantidades_melted_bars = chart_data.melt('Mes', value_vars=quantity_bars_vars, var_name='Tipo de Cantidad HE', value_name='Cantidad')
+                            bars_cantidades = alt.Chart(monthly_trends_cantidades_melted_bars).mark_bar().encode(x='Mes', y=alt.Y('Cantidad:Q', stack='zero', scale=y_scale_quant, axis=alt.Axis(format=',.0f')), color=alt.Color('Tipo de Cantidad HE', legend=alt.Legend(orient='bottom', title=None, columns=2, labelLimit=300), scale=alt.Scale(domain=quantity_color_domain, range=color_range)))
+                            line_cantidades = alt.Chart(chart_data).mark_line(color='black', point=alt.OverlayMarkDef(filled=False, fill='white', color='black'), strokeWidth=2).encode(x='Mes', y=alt.Y('Total_Cantidades:Q', title='Cantidad', scale=y_scale_quant, axis=alt.Axis(format=',.0f')), tooltip=[alt.Tooltip('Mes'), alt.Tooltip('Total_Cantidades', title='Total', format=',.0f')])
+                            text_cantidades = line_cantidades.mark_text(align='center', baseline='bottom', dy=-10, color='black').encode(text=alt.Text('Total_Cantidades:Q', format=',.0f'))
+                            st.altair_chart(alt.layer(bars_cantidades, line_cantidades, text_cantidades).resolve_scale(y='shared').properties(title=alt.TitleParams('Cantidades Mensuales', anchor='middle')).interactive(), use_container_width=True)
+                        else:
+                            st.info("No hay datos de cantidades para mostrar para la selección actual.")
+                        # --- FIN CORRECCIÓN ---
                     st.subheader('Tabla de Tendencias Mensuales')
                     st.dataframe(monthly_trends_agg_with_total.style.format(create_format_dict(monthly_trends_agg_with_total)), use_container_width=True)
                     generate_download_buttons(monthly_trends_agg_with_total, 'tendencias_mensuales', 'tab1_trends')
@@ -774,7 +790,9 @@ if uploaded_file is not None:
         group_cols = dimension_options[selected_dimension_key]
         primary_col, secondary_col = group_cols[0], group_cols[1]
         with st.spinner(f"Generando desglose por {selected_dimension_key}..."):
-            df_grouped = calculate_grouped_aggregation(df, st.session_state.selections, group_cols, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
+            # --- INICIO CORRECCIÓN: Usar filtered_df para el cálculo ---
+            df_grouped = calculate_grouped_aggregation(filtered_df, group_cols, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
+            # --- FIN CORRECCIÓN ---
             st.subheader(f'Distribución por {selected_dimension_key}')
             
             if df_grouped.empty:
@@ -811,7 +829,9 @@ if uploaded_file is not None:
     with tab_empleados:
         with st.container(border=True):
             with st.spinner("Calculando ranking de empleados..."):
-                employee_overtime = calculate_employee_overtime(df, st.session_state.selections, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
+                # --- INICIO CORRECCIÓN: Usar filtered_df para el cálculo ---
+                employee_overtime = calculate_employee_overtime(filtered_df, cost_columns_options, quantity_columns_options, st.session_state.cost_types, st.session_state.quantity_types)
+                # --- FIN CORRECCIÓN ---
                 if not employee_overtime.empty:
                     st.header(f'Top {top_n_employees} Empleados con Mayor Horas Extras')
                     top_costo_empleados, top_cantidad_empleados = employee_overtime.nlargest(top_n_employees, 'Total_Costos'), employee_overtime.nlargest(top_n_employees, 'Total_Cantidades')
@@ -842,7 +862,9 @@ if uploaded_file is not None:
             with st.spinner("Calculando valores promedio por hora..."):
                 st.header('Valores Promedio por Hora')
                 grouping_dimension = st.selectbox('Selecciona la dimensión de desglose:', ['Gerencia', 'Legajo', 'Función', 'CECO', 'Ubicación', 'Nivel', 'Sexo'], key='valor_hora_grouping')
-                df_valor_hora = calculate_average_hourly_rate(df, st.session_state.selections, grouping_dimension)
+                # --- INICIO CORRECCIÓN: Usar filtered_df para el cálculo ---
+                df_valor_hora = calculate_average_hourly_rate(filtered_df, grouping_dimension)
+                # --- FIN CORRECCIÓN ---
                 if not df_valor_hora.empty:
                     st.dataframe(df_valor_hora.style.format(create_format_dict(df_valor_hora)), use_container_width=True)
                     generate_download_buttons(df_valor_hora, f'valores_promedio_hora_por_{grouping_dimension}', 'tab_valor_hora')
@@ -856,3 +878,4 @@ if uploaded_file is not None:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados', 'tab4_brutos')
 else:
     st.info("Por favor, cargue un archivo Excel para comenzar el análisis.")
+
