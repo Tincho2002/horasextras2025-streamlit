@@ -400,6 +400,10 @@ if uploaded_file is not None:
         st.session_state.selections = {col: get_sorted_unique_options(df, col) for col in filter_cols}
         st.session_state.cost_types = list(cost_columns_options.keys())
         st.session_state.quantity_types = list(quantity_columns_options.keys())
+        #AÑADIR ESTO para el checkbox
+        # Forzar el reseteo del checkbox del mapa si existe en el estado de sesión
+        if 'show_map_comp_check' in st.session_state:
+            st.session_state['show_map_comp_check'] = False
         st.rerun()
     
     st.sidebar.markdown("---")
@@ -421,6 +425,10 @@ if uploaded_file is not None:
 
     # 4. DETECCIÓN DE CAMBIOS
     if old_selections != st.session_state.selections:
+        # AÑADIR ESTO: Si los filtros cambian, forzamos la casilla del mapa a desmarcarse.
+        # La clave es 'show_map_comp_check'
+        if 'show_map_comp_check' in st.session_state:
+            st.session_state['show_map_comp_check'] = False
         st.rerun()
     # --- FIN: LÓGICA DE FILTROS ---
 
@@ -706,7 +714,8 @@ if uploaded_file is not None:
                         style1_name = st.selectbox("Selecciona el estilo del mapa izquierdo:", options=list(map_style_options.keys()), index=0, key="map_style1")
                     with sel_col2:
                         style2_name = st.selectbox("Selecciona el estilo del mapa derecho:", options=list(map_style_options.keys()), index=1, key="map_style2")
-                        
+                    # 2. BOTÓN DE ACTIVACIÓN/CARGA CONDICIONAL
+                    show_map_comparison = st.checkbox("✅ Mostrar Comparación de Mapas", value=False, key="show_map_comp_check")    
                     def generate_map_figure(df_plot_data, mapbox_style):
                         if df_plot_data.empty:
                             return None
@@ -740,6 +749,7 @@ if uploaded_file is not None:
                                     img2=img2_pil,
                                     label1=style1_name,
                                     label2=style2_name,
+                                    width=850, # Ajuste el ancho a 850, puedes probar 800 o 900.
                                 )
                             else:
                                 st.warning("No se pudieron generar los mapas para la comparación.")
@@ -753,7 +763,9 @@ if uploaded_file is not None:
                     total_row_comp = pd.DataFrame({'Distrito': ['**TOTAL GENERAL**'], 'Costo Total': [table_data_comp['Costo Total'].sum()], 'Cantidad Total': [table_data_comp['Cantidad Total'].sum()]})
                     df_final_table_comp = pd.concat([table_data_comp, total_row_comp], ignore_index=True)
                     st.dataframe(df_final_table_comp.style.format({'Costo Total': format_currency_es, 'Cantidad Total': lambda x: format_number_es(x, 0)}), use_container_width=True, height=600, hide_index=True)
-            
+            else:
+                # 4. Mensaje que se muestra si el checkbox NO está marcado.
+                st.info("Seleccione los estilos de mapa deseados y marque la casilla 'Mostrar Comparación de Mapas' para visualizar y generar la comparación.")
             st.markdown("---")
 
             st.subheader(f"Mapa Interactivo Individual para el Período: {month_name_map}")
