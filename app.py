@@ -39,9 +39,9 @@ div.stDownloadButton button:hover {
 }
 
 /* Ajuste general de las etiquetas para que sean más grandes */
-.st-emotion-cache-ue6h4q {{
+.st-emotion-cache-ue6h4q {
     font-size: 1.1em; 
-}}
+}
 
 </style>
 """, unsafe_allow_html=True)
@@ -128,6 +128,7 @@ def load_and_clean_data(uploaded_file):
     try:
         df_excel = pd.read_excel(uploaded_file, sheet_name='Horas_Extras', engine='openpyxl')
     except Exception as e:
+        # Mensaje de error ajustado para ser más útil
         st.error(f"ERROR CRÍTICO: No se pudo leer la hoja 'Horas_Extras' del archivo cargado. Mensaje: {e}")
         return pd.DataFrame()
     if df_excel.empty: return pd.DataFrame()
@@ -398,7 +399,7 @@ if uploaded_file is not None:
                 # Gráfico de Costo Total por Periodo
                 bar_costo = alt.Chart(periodo_agg).mark_bar(color='#ed7d31').encode(
                     x=alt.X('Periodo', sort=all_periodos, title='Período'), 
-                    y=alt.Y('Costo Total', title='Costo Total ($)', axis=alt.Axis(format='$,d')), 
+                    y=alt.Y('Costo Total:Q', title='Costo Total ($)', axis=alt.Axis(format='$,d')), 
                     tooltip=['Periodo', alt.Tooltip('Costo Total', format='$,.0f')]
                 )
                 text_costo = bar_costo.mark_text(align='center', baseline='bottom', dy=-10).encode(
