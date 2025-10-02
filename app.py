@@ -128,7 +128,7 @@ def load_and_clean_data(uploaded_file):
     try:
         df_excel = pd.read_excel(uploaded_file, sheet_name='Horas_Extras', engine='openpyxl')
     except Exception as e:
-        # Mensaje de error ajustado para ser más útil
+        # El código busca 'Horas_Extras'
         st.error(f"ERROR CRÍTICO: No se pudo leer la hoja 'Horas_Extras' del archivo cargado. Mensaje: {e}")
         return pd.DataFrame()
     if df_excel.empty: return pd.DataFrame()
