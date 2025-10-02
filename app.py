@@ -717,56 +717,33 @@ if uploaded_file is not None:
                     st.markdown("---")
             
                     # 2. BOTÓN DE ACTIVACIÓN/CARGA CONDICIONAL
-                    show_map_comparison = st.checkbox("✅ Mostrar Comparación de Mapas", value=False, key="show_map_comp_check")    
                     
-                    def generate_map_figure(df_plot_data, mapbox_style):
-                        if df_plot_data.empty:
-                            return None
-                        mapbox_access_token = "pk.eyJ1Ijoic2FuZHJhcXVldmVkbyIsImEiOiJjbWYzOGNkZ2QwYWg0MnFvbDJucWc5d3VwIn0.bz6E-qxAwk6ZFPYohBsdMw"
-                        px.set_mapbox_access_token(mapbox_access_token)
-                        fig = px.scatter_mapbox(
-                            df_plot_data, lat="Latitud", lon="Longitud", 
-                            size="Cantidad_Total", color="Costo_Total", 
-                            hover_name="Distrito", 
-                            hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, 
-                            color_continuous_scale=px.colors.sequential.Plasma, size_max=50, 
-                            mapbox_style=mapbox_style, zoom=6, center={"lat": -32.5, "lon": -61.5}
-                        )
-                        fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-                        return fig
+show_map_comparison = st.checkbox("✅ Mostrar Comparación de Mapas", value=False, key="show_map_comp_check")    
 
-                    with st.spinner("Generando mapas para comparación..."):
-                        try:
-                            fig1 = generate_map_figure(df_mapa_data, map_style_options[style1_name])
-                            fig2 = generate_map_figure(df_mapa_data, map_style_options[style2_name])
-                            
-                            if fig1 and fig2:
-                                img1_bytes = fig1.to_image(format="png", width=1200, height=950, scale=2)
-                                img2_bytes = fig2.to_image(format="png", width=1200, height=950, scale=2)
-                                
-                                img1_pil = Image.open(io.BytesIO(img1_bytes))
-                                img2_pil = Image.open(io.BytesIO(img2_bytes))
-                                
-                                image_comparison(
-                                    img1=img1_pil,
-                                    img2=img2_pil,
-                                    label1=style1_name,
-                                    label2=style2_name,
-                                    width=850, # Ajuste el ancho a 850, puedes probar 800 o 900.
-                                )
-                            else:
-                                st.warning("No se pudieron generar los mapas para la comparación.")
-                        except Exception as e:
-                            st.error(f"Ocurrió un error al generar las imágenes del mapa: {e}")
-
-                with comp_col2:
-                    st.markdown("##### Costos y Cantidades por Distrito")
-                    table_data_comp = df_mapa_agg.rename(columns={'Ubicación': 'Distrito', 'Costo_Total': 'Costo Total', 'Cantidad_Total': 'Cantidad Total'})
-                    table_data_comp.sort_values(by='Costo Total', ascending=False, inplace=True)
-                    total_row_comp = pd.DataFrame({'Distrito': ['**TOTAL GENERAL**'], 'Costo Total': [table_data_comp['Costo Total'].sum()], 'Cantidad Total': [table_data_comp['Cantidad Total'].sum()]})
-                    df_final_table_comp = pd.concat([table_data_comp, total_row_comp], ignore_index=True)
-                    st.dataframe(df_final_table_comp.style.format({'Costo Total': format_currency_es, 'Cantidad Total': lambda x: format_number_es(x, 0)}), use_container_width=True, height=600, hide_index=True)
-
+if show_map_comparison:
+    with st.spinner("Generando mapas para comparación..."):
+        try:
+            fig1 = generate_map_figure(df_mapa_data, map_style_options[style1_name])
+            fig2 = generate_map_figure(df_mapa_data, map_style_options[style2_name])
+            
+            if fig1 and fig2:
+                img1_bytes = fig1.to_image(format="png", width=1200, height=950, scale=2)
+                img2_bytes = fig2.to_image(format="png", width=1200, height=950, scale=2)
+                
+                img1_pil = Image.open(io.BytesIO(img1_bytes))
+                img2_pil = Image.open(io.BytesIO(img2_bytes))
+                
+                image_comparison(
+                    img1=img1_pil,
+                    img2=img2_pil,
+                    label1=style1_name,
+                    label2=style2_name,
+                    width=850,
+                )
+            else:
+                st.warning("No se pudieron generar los mapas para la comparación.")
+        except Exception as e:
+            st.error(f"Ocurrió un error al generar las imágenes del mapa: {e}")
 else:
     # 4. Mensaje que se muestra si el checkbox NO está marcado.
     st.info("Seleccione los estilos de mapa deseados y marque la casilla 'Mostrar Comparación de Mapas' para visualizar y generar la comparación.")
@@ -825,6 +802,41 @@ else:
                 height=600,
                 hide_index=True
             )
+
+                with comp_col2:
+                    st.markdown("##### Costos y Cantidades por Distrito")
+                    table_data_comp = df_mapa_agg.rename(columns={'Ubicación': 'Distrito', 'Costo_Total': 'Costo Total', 'Cantidad_Total': 'Cantidad Total'})
+                    table_data_comp.sort_values(by='Costo Total', ascending=False, inplace=True)
+                    total_row_comp = pd.DataFrame({'Distrito': ['**TOTAL GENERAL**'], 'Costo Total': [table_data_comp['Costo Total'].sum()], 'Cantidad Total': [table_data_comp['Cantidad Total'].sum()]})
+                    df_final_table_comp = pd.concat([table_data_comp, total_row_comp], ignore_index=True)
+                    st.dataframe(df_final_table_comp.style.format({'Costo Total': format_currency_es, 'Cantidad Total': lambda x: format_number_es(x, 0)}), use_container_width=True, height=600, hide_index=True)
+
+else:
+    # 4. Mensaje que se muestra si el checkbox NO está marcado.
+    st.info("Seleccione los estilos de mapa deseados y marque la casilla 'Mostrar Comparación de Mapas' para visualizar y generar la comparación.")
+            
+            st.markdown("---")
+
+            st.subheader(f"Mapa Interactivo Individual para el Período: {month_name_map}")
+            
+            if not df_mapa_data.empty:
+                selected_style_single_name = st.selectbox("Selecciona el estilo del mapa:", options=list(map_style_options.keys()), key="map_style_selector_single", index=0)
+                selected_mapbox_style_single = map_style_options[selected_style_single_name]
+                
+                single_map_col, single_table_col = st.columns([3, 2])
+                
+                with single_map_col:
+                    fig_single = px.scatter_mapbox(df_mapa_data, lat="Latitud", lon="Longitud", size="Cantidad_Total", color="Costo_Total", hover_name="Distrito", hover_data={"Latitud": False, "Longitud": False, "Cantidad_Total": ':.0f', "Costo_Total": ':$,.2f'}, color_continuous_scale=px.colors.sequential.Plasma, size_max=50, mapbox_style=selected_mapbox_style_single, zoom=6, center={"lat": -32.5, "lon": -61.5})
+                    fig_single.update_layout(margin={"r":0, "t":0, "l":0, "b":0}, height=600)
+                    st.plotly_chart(fig_single, use_container_width=True)
+
+                with single_table_col:
+                    st.markdown("##### Costos y Cantidades por Distrito")
+                    table_data_single = df_mapa_agg.rename(columns={'Ubicación': 'Distrito', 'Costo_Total': 'Costo Total', 'Cantidad_Total': 'Cantidad Total'})
+                    table_data_single.sort_values(by='Costo Total', ascending=False, inplace=True)
+                    total_row_single = pd.DataFrame({'Distrito': ['**TOTAL GENERAL**'], 'Costo Total': [table_data_single['Costo Total'].sum()], 'Cantidad Total': [table_data_single['Cantidad Total'].sum()]})
+                    df_final_table_single = pd.concat([table_data_single, total_row_single], ignore_index=True)
+                    st.dataframe(df_final_table_single.style.format({'Costo Total': format_currency_es, 'Cantidad Total': lambda x: format_number_es(x, 0)}), use_container_width=True, height=600, hide_index=True)
 
     with tab_desglose_org:
         st.header('Desglose Organizacional Detallado')
@@ -915,3 +927,4 @@ else:
             generate_download_buttons(filtered_df, 'datos_brutos_filtrados', 'tab4_brutos')
 else:
     st.info("Por favor, cargue un archivo Excel para comenzar el análisis.")
+
