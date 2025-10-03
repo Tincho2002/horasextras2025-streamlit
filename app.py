@@ -763,7 +763,7 @@ if uploaded_file is not None:
                         st.info("Seleccione los estilos de mapa deseados y marque la casilla 'Mostrar Comparación de Mapas' para visualizar y generar la comparación.")
 
                 with comp_col2:
-                    st.markdown("##### Costos y Cantidades por Distrito")
+                    #st.markdown("##### Costos y Cantidades por Distrito")
                     table_data_comp = df_mapa_agg.rename(columns={'Ubicación': 'Distrito', 'Costo_Total': 'Costo Total', 'Cantidad_Total': 'Cantidad Total'})
                     table_data_comp.sort_values(by='Costo Total', ascending=False, inplace=True)
                     total_row_comp = pd.DataFrame({'Distrito': ['**TOTAL GENERAL**'], 'Costo Total': [table_data_comp['Costo Total'].sum()], 'Cantidad Total': [table_data_comp['Cantidad Total'].sum()]})
@@ -786,7 +786,7 @@ if uploaded_file is not None:
                     st.plotly_chart(fig_single, use_container_width=True)
 
                 with single_table_col:
-                    st.markdown("##### Costos y Cantidades por Distrito")
+                    #st.markdown("##### Costos y Cantidades por Distrito")
                     table_data_single = df_mapa_agg.rename(columns={'Ubicación': 'Distrito', 'Costo_Total': 'Costo Total', 'Cantidad_Total': 'Cantidad Total'})
                     table_data_single.sort_values(by='Costo Total', ascending=False, inplace=True)
                     total_row_single = pd.DataFrame({'Distrito': ['**TOTAL GENERAL**'], 'Costo Total': [table_data_single['Costo Total'].sum()], 'Cantidad Total': [table_data_single['Cantidad Total'].sum()]})
